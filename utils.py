@@ -36,9 +36,9 @@ from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
 
 class PathUtils:
     scratch_dir = (
-        Path("/Users/Matteo/scratch/")
-        if platform.system() == "Darwin"
-        else Path("/local/scratch/mb2389/")
+        Path("/scratch/")
+        if platform.system() == "Darwin" # native Mac OS X
+        else Path("/scratch/") # colab
     )
     gppo_dir = Path(__file__).parent.resolve()
     result_dir = gppo_dir / "results"
