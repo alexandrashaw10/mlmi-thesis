@@ -66,6 +66,9 @@ def train(
         with open(params_path, "rb") as f:
             config = pickle.load(f)
 
+    trainer = MultiPPOTrainer
+    trainer_name = "MultiPPOTrainer" if trainer is MultiPPOTrainer else "PPOTrainer"
+
     tune.run(
         MultiPPOTrainer,
         name=group_name if model_name.startswith("GPPO") else model_name,
@@ -109,7 +112,9 @@ def train(
             "batch_mode": "complete_episodes",
             "model": {
                 "custom_model": model_name,
-                "custom_action_dist": "hom_multi_action",
+                "custom_action_dist": (
+                    "hom_multi_action" if trainer is MultiPPOTrainer else None
+                ),
                 "custom_model_config": {
                     "activation_fn": "relu",
                     "share_observations": share_observations,
@@ -126,6 +131,7 @@ def train(
                     "vel_start": 2,
                     "vel_dim": 2,
                     "share_action_value": True,
+                    "trainer": trainer_name,
                 }
                 if model_name.startswith("GPPO")
                 else fcnet_model_config,
