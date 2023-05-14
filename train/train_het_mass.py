@@ -14,18 +14,19 @@ from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
 from utils import PathUtils, TrainingUtils
 
 ON_MAC = False
+USING_GPU = False
 
-train_batch_size = 60000 if not ON_MAC else 200  # Jan 32768
-num_workers = 4 if not ON_MAC else 0  # jan 4
-num_envs_per_worker = 75 if not ON_MAC else 1  # Jan 32
+# change batch size now instead of ON_MAC, also need using CPU or GPU runtime
+train_batch_size = 60000 if USING_GPU else 200  # Jan 32768
+num_workers = 4 if USING_GPU else 0  # jan 4, why would this be 0 if you are on mac?
+num_envs_per_worker = 75 if USING_GPU else 1  # Jan 32
 rollout_fragment_length = (
     train_batch_size
-    if ON_MAC
+    if (not USING_GPU or ON_MAC)
     else train_batch_size // (num_workers * num_envs_per_worker)
 )
 scenario_name = "het_mass"
 model_name = "GPPO"
-
 
 def train(
     share_observations,
@@ -41,7 +42,7 @@ def train(
     seed,
     notes,
 ):
-    checkpoint_rel_path = "ray_results/joint/HetGIPPO/MultiPPOTrainer_joint_654d9_00000_0_2022-08-23_17-26-52/checkpoint_001349/checkpoint-1349"
+    checkpoint_rel_path = "ray_results/joint/test_path1"
     checkpoint_path = PathUtils.scratch_dir / checkpoint_rel_path
     params_path = checkpoint_path.parent.parent / "params.pkl"
 
@@ -68,7 +69,6 @@ def train(
 
     trainer = MultiPPOTrainer
     trainer_name = "MultiPPOTrainer" if trainer is MultiPPOTrainer else "PPOTrainer"
-
     tune.run(
         MultiPPOTrainer,
         name=group_name if model_name.startswith("GPPO") else model_name,
@@ -78,8 +78,8 @@ def train(
         checkpoint_score_attr="episode_reward_mean",
         callbacks=[
             WandbLoggerCallback(
-                project=f"{scenario_name}{'_test' if ON_MAC else ''}",
-                api_key_file=str(PathUtils.scratch_dir / "wandb_api_key_file"),
+                project=f"{scenario_name}{'_test' if not USING_GPU else ''}",
+                api_key_file=str(PathUtils.scratch_dir / "wandb_api_key.txt"),
                 group=group_name,
                 notes=notes,
             )
@@ -100,7 +100,7 @@ def train(
             "entropy_coeff": 0,  # 0.01,
             "train_batch_size": train_batch_size,
             "rollout_fragment_length": rollout_fragment_length,
-            "sgd_minibatch_size": 2048 if not ON_MAC else 100,  # jan 2048
+            "sgd_minibatch_size": 2048 if USING_GPU else 100,  # jan 2048
             "num_sgd_iter": 25,  # Jan 30
             "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", "0")),
             "num_workers": num_workers,
@@ -112,7 +112,7 @@ def train(
             "batch_mode": "complete_episodes",
             "model": {
                 "custom_model": model_name,
-                "custom_action_dist": (
+                "custom_action_dist":  (
                     "hom_multi_action" if trainer is MultiPPOTrainer else None
                 ),
                 "custom_model_config": {
@@ -137,7 +137,7 @@ def train(
                 else fcnet_model_config,
             },
             "env_config": {
-                "device": "cpu",
+                "device": "cpu", # why is this not "or cuda"
                 "num_envs": num_envs_per_worker,
                 "scenario_name": scenario_name,
                 "continuous_actions": continuous_actions,
@@ -169,7 +169,6 @@ def train(
         if not restore
         else config,
     )
-
 
 if __name__ == "__main__":
     TrainingUtils.init_ray(scenario_name=scenario_name, local_mode=ON_MAC)
