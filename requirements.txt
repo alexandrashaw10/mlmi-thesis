@@ -1,6 +1,6 @@
 numpy==1.23.5
 vmas
-wandb
+wandb==0.13.9
 torch
 torch_geometric
 torch_scatter
