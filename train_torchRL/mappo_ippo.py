@@ -17,6 +17,7 @@ from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
+#from monotonenorm import GroupSort, direct_norm # don't need sigma net because that's for monotone constraints
 from utils.logging import log_evaluation, log_training
 
 
@@ -114,9 +115,9 @@ def train(seed):
             centralised=False, # policy for MAPPO is not centralized
             share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
             device=training_device,
-            depth=2, # why is this a fixed depth for the policy and why is it not 3?
+            depth=3, # changed to three to make it an actual MLP from 2
             num_cells=256, # why are the number of cells fixed as well
-            activation_class=nn.Tanh, # can change the activation class, but this is fine for now
+            activation_class=nn.Tanh, # original: Tanh
         ),
         NormalParamExtractor(),
     )
@@ -149,7 +150,7 @@ def train(seed):
         centralised=model_config["centralised_critic"],
         share_params=model_config["shared_parameters"],
         device=training_device,
-        depth=2,
+        depth=3, # changed to 3
         num_cells=256,
         activation_class=nn.Tanh,
     )
