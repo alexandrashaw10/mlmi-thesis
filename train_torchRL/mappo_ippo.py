@@ -24,10 +24,10 @@ from logging_utils import log_evaluation, log_training
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
-def trainMAPPO_IPPO(seed, config, model_config):
+def trainMAPPO_IPPO(seed, config, model_config, env_config):
     # Create env and env_test
     env = VmasEnv(
-        scenario=scenario_name,
+        scenario=env_config["scenario_name"],
         num_envs=vmas_envs,
         continuous_actions=True,
         max_steps=max_steps,
@@ -289,8 +289,9 @@ if __name__ == "__main__":
         total_frames = frames_per_batch * n_iters
         memory_size = frames_per_batch
 
-        scenario_name = "balance"
         env_config = {
+            # Scenario
+            "scenario_name": "het_mass",
             "n_agents": 3,
         }
 
@@ -327,4 +328,4 @@ if __name__ == "__main__":
             "MLP_activation": nn.Tanh,
         }
 
-        trainMAPPO_IPPO(seed, config, model_config)
+        trainMAPPO_IPPO(seed, config, model_config, env_config)
