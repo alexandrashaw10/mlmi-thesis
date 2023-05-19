@@ -31,7 +31,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         num_envs=config["vmas_envs"],
         continuous_actions=True,
         max_steps=config["max_steps"],
-        device=vmas_device,
+        device=config["vmas_device"],
         seed=seed,
         # Scenario kwargs
         **env_config,
@@ -41,7 +41,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
         max_steps=config["max_steps"],
-        device=vmas_device,
+        device=config["vmas_device"],
         seed=seed,
         # Scenario kwargs
         **env_config,
@@ -109,7 +109,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
     collector = SyncDataCollector(
         env,
         policy,
-        device=vmas_device,
+        device=config["vmas_device"],
         # makes sure that the device for the output tensordict has enough storage, 
 		# may be different then where the policy and env are executed
         storing_device=training_device,
