@@ -122,7 +122,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
 	# Set up storage for the replay buffer
     replay_buffer = ReplayBuffer(
         # where to store it/how large is the buffer
-        storage=LazyTensorStorage(memory_size, device=config["training_device"]),
+        storage=LazyTensorStorage(config["memory_size"], device=config["training_device"]),
         # sampler to be used
         sampler=SamplerWithoutReplacement(),
         # defines the batch size to be used
