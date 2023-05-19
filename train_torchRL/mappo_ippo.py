@@ -57,7 +57,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
             n_agents=env.n_agents,
             centralised=False, # policy for MAPPO is not centralized
             share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
-            device=training_device,
+            device=config["training_device"],
             depth=3, # changed to three to make it an actual MLP from 2
             num_cells=256, # why are the number of cells fixed as well
             activation_class=model_config["MLP_activation"], # original: Tanh
@@ -92,7 +92,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         n_agents=env.n_agents,
         centralised=model_config["centralised_critic"],
         share_params=model_config["shared_parameters"],
-        device=training_device,
+        device=config["training_device"],
         depth=3, # changed to 3
         num_cells=256,
         activation_class=model_config["MLP_activation"],
@@ -103,7 +103,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
     )
 
 	# what does this line do?
-    value_module(policy(env.reset().to(training_device)))
+    value_module(policy(env.reset().to(config["training_device"])))
 
 	# sets the device for the policy and collects the data
     collector = SyncDataCollector(
@@ -112,7 +112,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         device=config["vmas_device"],
         # makes sure that the device for the output tensordict has enough storage, 
 		# may be different then where the policy and env are executed
-        storing_device=training_device,
+        storing_device=config["training_device"],
         frames_per_batch=frames_per_batch, # number of elements in a batch
         total_frames=total_frames, # how much it will collect while running
     )
@@ -120,7 +120,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
 	# Set up storage for the replay buffer
     replay_buffer = ReplayBuffer(
         # where to store it/how large is the buffer
-        storage=LazyTensorStorage(memory_size, device=training_device),
+        storage=LazyTensorStorage(memory_size, device=config["training_device"]),
         # sampler to be used
         sampler=SamplerWithoutReplacement(),
         # defines the batch size to be used
