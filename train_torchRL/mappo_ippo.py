@@ -3,7 +3,7 @@ import time
 import torch
 import wandb
 
-from models.mlp import MultiAgentMLP
+from models.torch_mlp import MultiAgentMLP
 
 from tensordict.nn import TensorDictModule
 from tensordict.nn.distributions import NormalParamExtractor
@@ -18,13 +18,13 @@ from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 #from monotonenorm import GroupSort, direct_norm # don't need sigma net because that's for monotone constraints
-from utils.logging import log_evaluation, log_training
+from logging_utils import log_evaluation, log_training
 
 
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
-def train(seed, config, model_config):
+def trainMAPPO_IPPO(seed, config, model_config):
     # Create env and env_test
     env = VmasEnv(
         scenario=scenario_name,
@@ -327,4 +327,4 @@ if __name__ == "__main__":
             "MLP_activation": nn.Tanh,
         }
 
-        train(seed, config, model_config)
+        trainMAPPO_IPPO(seed, config, model_config)
