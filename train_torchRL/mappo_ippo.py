@@ -25,7 +25,7 @@ from logging_utils import log_evaluation, log_training
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
-def trainMAPPO_IPPO(seed, config, model_config, env_config):
+def trainMAPPO_IPPO(seed, config, model_config, env_config, write_logs):
     # Create env and env_test
     env = VmasEnv(
         scenario=env_config["scenario_name"],
@@ -281,7 +281,7 @@ if __name__ == "__main__":
         torch.manual_seed(seed)
 
         # Log
-        log = True
+        write_logs = True
 
         # Sampling
         frames_per_batch = 60_000  # Frames sampled each sampling iteration
@@ -330,4 +330,4 @@ if __name__ == "__main__":
             "MLP_activation": nn.Tanh,
         }
 
-        trainMAPPO_IPPO(seed, config, model_config, env_config)
+        trainMAPPO_IPPO(seed, config, model_config, env_config, write_logs)
