@@ -28,7 +28,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
     # Create env and env_test
     env = VmasEnv(
         scenario=env_config["scenario_name"],
-        num_envs=vmas_envs,
+        num_envs=config["vmas_envs"],
         continuous_actions=True,
         max_steps=max_steps,
         device=vmas_device,
@@ -37,7 +37,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         **env_config,
     )
     env_test = VmasEnv(
-        scenario=scenario_name,
+        scenario=env_config["scenario_name"],
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
         max_steps=max_steps,
@@ -46,7 +46,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         # Scenario kwargs
         **env_config,
     )
-    env_config.update({"n_agents": env.n_agents, "scenario_name": scenario_name})
+    env_config.update({"n_agents": env.n_agents, "scenario_name": env_config["scenario_name"]})
 
     # Policy
     actor_net = nn.Sequential(
