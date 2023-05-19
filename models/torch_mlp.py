@@ -23,7 +23,7 @@ class MultiAgentMLP(nn.Module):
         sigma=1.0,
     ):
         super().__init__()
-        
+        # credit to monotonenorm package
         def lipschitz_norm(module):
             return direct_norm(
                 module, # layer to constrain
@@ -45,7 +45,7 @@ class MultiAgentMLP(nn.Module):
                     else n_agent_inputs * n_agents,
                     out_features=n_agent_outputs,
                     depth=depth,
-                    norm_layer=lipschitz_norm if lip_constrained else None, # stack a norm layer on top of the linear layer
+                    norm_class=lipschitz_norm if lip_constrained else None, # stack a norm layer on top of the linear layer
 					# want to do def lipschitz_norm(module) and return direct_norm from the monotoneNorm module
 					# then can do that
                     num_cells=num_cells,
