@@ -5,7 +5,7 @@ import wandb
 
 from models.torch_mlp import MultiAgentMLP
 
-from tensordict.nn import TensorDictModule # tensordict.nn
+from tensordict.nn import TensorDictModule
 from modules.tensordict_module import exploration
 from tensordict.nn.distributions import NormalParamExtractor
 from torch import nn
@@ -18,7 +18,6 @@ from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
-#from monotonenorm import GroupSort, direct_norm # don't need sigma net because that's for monotone constraints
 from logging_utils import log_evaluation, log_training
 
 
@@ -63,6 +62,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             depth=3, # changed to three to make it an actual MLP from 2
             num_cells=256, # why are the number of cells fixed as well
             activation_class=model_config["MLP_activation"], # original: Tanh
+            lip_constrained=model_config["lip_actor"],
+            sigma=model_config["lip_sigma"],
         ),
         NormalParamExtractor(),
     )
@@ -98,6 +99,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         depth=3, # changed to 3
         num_cells=256,
         activation_class=model_config["MLP_activation"],
+        lip_constrained=model_config["lip_critic"],
+        sigma=model_config["lip_sigma"],
     )
     value_module = ValueOperator(
         module=module, # didn't need a TensorDictModule here, probably because we don't have out_keys ?
@@ -204,12 +207,11 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
                 loss_value.backward()
 
-				# don't think you can do gradient clipping with the Lipschitz constraint
-				##### instead of this, will be enforcing the Lipschitz constraint
-                total_norm = torch.nn.utils.clip_grad_norm_(
-                    loss_module.parameters(), config["max_grad_norm"]
-                )
-                training_tds[-1]["grad_norm"] = total_norm.mean()
+                if not config["constrain_lipschitz"]:
+                    total_norm = torch.nn.utils.clip_grad_norm_(
+                        loss_module.parameters(), config["max_grad_norm"]
+                    )
+                    training_tds[-1]["grad_norm"] = total_norm.mean()
 
                 optim.step()
                 optim.zero_grad() # sets the gradients of all optimized tensors to zero
@@ -328,6 +330,9 @@ if __name__ == "__main__":
             "shared_parameters": True, # True = homogeneous, False = Heterogeneous
             "centralised_critic": True,  # MAPPO if True, IPPO if False
             "MLP_activation": nn.Tanh,
+            "lip_actor": False, # lipschitz constrain the actor
+            "lip_critic": False, # lipschitz constrain the critic
+            "lip_sigma": 1.0,
         }
 
         trainMAPPO_IPPO(seed, config, model_config, env_config, write_logs)

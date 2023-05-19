@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from torchrl.modules import MLP
+from monotonenorm import direct_norm
 
 
 class MultiAgentMLP(nn.Module):
@@ -18,8 +19,17 @@ class MultiAgentMLP(nn.Module):
         depth,
         num_cells,
         activation_class, # try with GroupSort and with tanh
+        lip_constrained=False,
+        sigma=1.0,
     ):
         super().__init__()
+        
+        def lipschitz_norm(module):
+            return direct_norm(
+                module, # layer to constrain
+                "one", # defines p for the p-norm constraint type
+                max_norm=sigma ** (1/3)
+            )
 
         self.n_agents = n_agents
         self.n_agent_inputs = n_agent_inputs
@@ -35,7 +45,7 @@ class MultiAgentMLP(nn.Module):
                     else n_agent_inputs * n_agents,
                     out_features=n_agent_outputs,
                     depth=depth,
-                    #norm_layer=torch.nn.Module to stack a norm layer on top of the linear layer
+                    norm_layer=lipschitz_norm if lip_constrained else None, # stack a norm layer on top of the linear layer
 					# want to do def lipschitz_norm(module) and return direct_norm from the monotoneNorm module
 					# then can do that
                     num_cells=num_cells,
