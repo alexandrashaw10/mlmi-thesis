@@ -25,7 +25,7 @@ from logging_utils import log_evaluation, log_training
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
-def trainMAPPO_IPPO(seed, config, model_config, env_config, log):
+def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
     env = VmasEnv(
         scenario=env_config["scenario_name"],
