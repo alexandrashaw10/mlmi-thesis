@@ -30,7 +30,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         scenario=env_config["scenario_name"],
         num_envs=config["vmas_envs"],
         continuous_actions=True,
-        max_steps=max_steps,
+        max_steps=config["max_steps"],
         device=vmas_device,
         seed=seed,
         # Scenario kwargs
@@ -40,7 +40,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         scenario=env_config["scenario_name"],
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
-        max_steps=max_steps,
+        max_steps=config["max_steps"],
         device=vmas_device,
         seed=seed,
         # Scenario kwargs
@@ -244,7 +244,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
             with torch.no_grad():
                 env_test.frames = []
                 rollouts = env_test.rollout(
-                    max_steps=max_steps,
+                    max_steps=config["max_steps"],
                     policy=policy,
                     callback=rendering_callback,
                     auto_cast_to_device=True,
