@@ -207,7 +207,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
                 loss_value.backward()
 
-                if not config["constrain_lipschitz"]:
+                if not model_config["constrain_lipschitz"]:
                     total_norm = torch.nn.utils.clip_grad_norm_(
                         loss_module.parameters(), config["max_grad_norm"]
                     )
