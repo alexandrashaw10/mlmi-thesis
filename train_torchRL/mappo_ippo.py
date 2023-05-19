@@ -24,64 +24,7 @@ from utils.logging import log_evaluation, log_training
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
-
-def train(seed):
-    # Device
-    training_device = "cpu" if not torch.has_cuda else "cuda:0"
-    vmas_device = training_device
-
-    # Seeding
-    seed = seed # should this be a diff name ?
-    torch.manual_seed(seed)
-
-    # Log
-    log = True
-
-    # Sampling
-    frames_per_batch = 60_000  # Frames sampled each sampling iteration
-    max_steps = 100 # defines the horizon, None=infinite. max number of steps in each vectorized env before it returns Done
-    vmas_envs = frames_per_batch // max_steps
-    n_iters = 500  # Number of sampling/training iterations, "stop"
-    total_frames = frames_per_batch * n_iters
-    memory_size = frames_per_batch
-
-    scenario_name = "balance"
-    env_config = {
-        "n_agents": 3,
-    }
-
-    config = {
-        # RL
-        "gamma": 0.9,
-        "seed": seed,
-        # PPO
-        "lmbda": 0.9,
-        "entropy_eps": 0,
-        "clip_epsilon": 0.2,
-        # Sampling,
-        "frames_per_batch": frames_per_batch,
-        "max_steps": max_steps,
-        "vmas_envs": vmas_envs,
-        "n_iters": n_iters,
-        "total_frames": total_frames,
-        "memory_size": memory_size,
-        "vmas_device": vmas_device,
-        # Training
-        "num_epochs": 45,  # optimization steps per batch of data collected
-        "minibatch_size": 4096,  # size of minibatches used in each epoch
-        "lr": 5e-5, # what algorithm is using this learning rate ?
-        "max_grad_norm": 40.0,
-        "training_device": training_device,
-        # Evaluation
-        "evaluation_interval": 20, # what is this interval
-        "evaluation_episodes": 200, # number of episodes to use during evaluation
-    }
-
-    model_config = {
-        "shared_parameters": True, # True = homogeneous, False = Heterogeneous
-        "centralised_critic": True,  # MAPPO if True, IPPO if False
-    }
-
+def train(seed, config, model_config):
     # Create env and env_test
     env = VmasEnv(
         scenario=scenario_name,
@@ -117,7 +60,7 @@ def train(seed):
             device=training_device,
             depth=3, # changed to three to make it an actual MLP from 2
             num_cells=256, # why are the number of cells fixed as well
-            activation_class=nn.Tanh, # original: Tanh
+            activation_class=model_config["MLP_activation"], # original: Tanh
         ),
         NormalParamExtractor(),
     )
@@ -152,7 +95,7 @@ def train(seed):
         device=training_device,
         depth=3, # changed to 3
         num_cells=256,
-        activation_class=nn.Tanh,
+        activation_class=model_config["MLP_activation"],
     )
     value_module = ValueOperator(
         module=module, # didn't need a TensorDictModule here, probably because we don't have out_keys ?
@@ -327,4 +270,61 @@ def train(seed):
 
 if __name__ == "__main__":
     for seed in [0]:
-        train(seed)
+        # Device
+        training_device = "cpu" if not torch.has_cuda else "cuda:0"
+        vmas_device = training_device
+
+        # Seeding
+        seed = seed # should this be a diff name ?
+        torch.manual_seed(seed)
+
+        # Log
+        log = True
+
+        # Sampling
+        frames_per_batch = 60_000  # Frames sampled each sampling iteration
+        max_steps = 100 # defines the horizon, None=infinite. max number of steps in each vectorized env before it returns Done
+        vmas_envs = frames_per_batch // max_steps
+        n_iters = 500  # Number of sampling/training iterations, "stop"
+        total_frames = frames_per_batch * n_iters
+        memory_size = frames_per_batch
+
+        scenario_name = "balance"
+        env_config = {
+            "n_agents": 3,
+        }
+
+        config = {
+            # RL
+            "gamma": 0.9,
+            "seed": seed,
+            # PPO
+            "lmbda": 0.9,
+            "entropy_eps": 0,
+            "clip_epsilon": 0.2,
+            # Sampling,
+            "frames_per_batch": frames_per_batch,
+            "max_steps": max_steps,
+            "vmas_envs": vmas_envs,
+            "n_iters": n_iters,
+            "total_frames": total_frames,
+            "memory_size": memory_size,
+            "vmas_device": vmas_device,
+            # Training
+            "num_epochs": 45,  # optimization steps per batch of data collected
+            "minibatch_size": 4096,  # size of minibatches used in each epoch
+            "lr": 5e-5, # what algorithm is using this learning rate ?
+            "max_grad_norm": 40.0,
+            "training_device": training_device,
+            # Evaluation
+            "evaluation_interval": 20, # what is this interval
+            "evaluation_episodes": 200, # number of episodes to use during evaluation
+        }
+
+        model_config = {
+            "shared_parameters": True, # True = homogeneous, False = Heterogeneous
+            "centralised_critic": True,  # MAPPO if True, IPPO if False
+            "MLP_activation": nn.Tanh,
+        }
+
+        train(seed, config, model_config)
