@@ -13,7 +13,7 @@ from torchrl.collectors import SyncDataCollector
 from torchrl.data.replay_buffers import ReplayBuffer
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.replay_buffers.storages import LazyTensorStorage
-from vmas.vmas import VmasEnv # torchrl.envs.libs.vmas
+from vmas_beta.vmas import VmasEnv # torchrl.envs.libs.vmas
 from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
@@ -47,7 +47,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         # Scenario kwargs
         **env_config,
     )
-    env_config.update({"n_agents": env.n_agents, "scenario_name": env_config["scenario_name"]})
+    # why was this here?
+    # env_config.update({"n_agents": env.n_agents, "scenario_name": env_config["scenario_name"]})
 
     # Policy
     actor_net = nn.Sequential(
@@ -190,7 +191,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         training_tds = []
         training_start = time.time()
         for _ in range(config["num_epochs"]):
-            for _ in range(frames_per_batch // config["minibatch_size"]):
+            for _ in range(config["frames_per_batch"] // config["minibatch_size"]):
                 subdata = replay_buffer.sample()
                 loss_vals = loss_module(subdata)
                 training_tds.append(loss_vals.detach()) # removes it from the computational graph
