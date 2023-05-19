@@ -62,7 +62,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             depth=3, # changed to three to make it an actual MLP from 2
             num_cells=256, # why are the number of cells fixed as well
             activation_class=model_config["MLP_activation"], # original: Tanh
-            lip_constrained=model_config["lip_actor"],
+            lip_constrained=model_config["constrain_lipschitz"],
             sigma=model_config["lip_sigma"],
         ),
         NormalParamExtractor(),
@@ -99,7 +99,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         depth=3, # changed to 3
         num_cells=256,
         activation_class=model_config["MLP_activation"],
-        lip_constrained=model_config["lip_critic"],
+        lip_constrained=model_config["constrain_lipschitz"],
         sigma=model_config["lip_sigma"],
     )
     value_module = ValueOperator(
