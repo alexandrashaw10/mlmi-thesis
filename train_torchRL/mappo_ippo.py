@@ -115,8 +115,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config):
         # makes sure that the device for the output tensordict has enough storage, 
 		# may be different then where the policy and env are executed
         storing_device=config["training_device"],
-        frames_per_batch=frames_per_batch, # number of elements in a batch
-        total_frames=total_frames, # how much it will collect while running
+        frames_per_batch=config["frames_per_batch"], # number of elements in a batch
+        total_frames=config["total_frames"], # how much it will collect while running
     )
 
 	# Set up storage for the replay buffer
