@@ -59,8 +59,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             centralised=False, # policy for MAPPO is not centralized
             share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
             device=config["training_device"],
-            depth=3, # changed to three to make it an actual MLP from 2
-            num_cells=256, # why are the number of cells fixed as well
+            depth=model_config["mlp_depth"], # changed to 3
+            num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
             activation_class=model_config["MLP_activation"], # original: Tanh
             lip_constrained=model_config["constrain_lipschitz"],
             sigma=model_config["lip_sigma"],
@@ -96,8 +96,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         centralised=model_config["centralised_critic"],
         share_params=model_config["shared_parameters"],
         device=config["training_device"],
-        depth=3, # changed to 3
-        num_cells=256,
+        depth=model_config["mlp_depth"], # changed to 3
+        num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
         activation_class=model_config["MLP_activation"],
         lip_constrained=model_config["constrain_lipschitz"],
         sigma=model_config["lip_sigma"],
@@ -333,6 +333,8 @@ if __name__ == "__main__":
             "lip_actor": False, # lipschitz constrain the actor
             "lip_critic": False, # lipschitz constrain the critic
             "lip_sigma": 1.0,
+            "mlp_hidden_params":256,
+            "mlp_depth":3,
         }
 
         trainMAPPO_IPPO(seed, config, model_config, env_config, write_logs)

@@ -27,15 +27,16 @@ class LipNormedMLP(nn.Module):
         # lipschitz constraints are added to the linear layer forward pre-hook 
         # so that it is normalized before the backward pass and the normalized gradients are passed through
         if lip_constrained:
+            assert sigma is not None, "if lipschitz constraint active, sigma must be a float"
+
             self.layers.append(lipschitz_norm(nn.Linear(in_features, num_cells)))
             self.layers.append(activation_class())
             for d in range(1,depth-1):
                 self.layers.append(lipschitz_norm(nn.Linear(num_cells, num_cells)))
                 if activation_class is not None:
                     self.layers.append(activation_class())
-            
             self.layers.append(lipschitz_norm(nn.Linear(num_cells, out_features)))
-            self.layers.append(activation_class())
+
         else:
             self.layers.append(nn.Linear(in_features, num_cells))
             self.layers.append(activation_class())
@@ -44,7 +45,7 @@ class LipNormedMLP(nn.Module):
                 if activation_class is not None:
                     self.layers.append(activation_class())
             self.layers.append(nn.Linear(num_cells, out_features))
-            self.layers.append(activation_class())
+        # self.layers.append(activation_class())
 
         self.device = device
         self.to(device)
