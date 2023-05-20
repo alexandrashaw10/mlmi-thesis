@@ -28,21 +28,23 @@ class LipNormedMLP(nn.Module):
         # so that it is normalized before the backward pass and the normalized gradients are passed through
         if lip_constrained:
             self.layers.append(lipschitz_norm(nn.Linear(in_features, num_cells)))
+            self.layers.append(activation_class())
             for d in range(1,depth-1):
                 self.layers.append(lipschitz_norm(nn.Linear(num_cells, num_cells)))
                 if activation_class is not None:
-                    self.layers.append(activation_class)
+                    self.layers.append(activation_class())
             
             self.layers.append(lipschitz_norm(nn.Linear(num_cells, out_features)))
-            self.layers.append(activation_class)
+            self.layers.append(activation_class())
         else:
             self.layers.append(nn.Linear(in_features, num_cells))
+            self.layers.append(activation_class())
             for d in range(1,depth-1):
                 self.layers.append(nn.Linear(num_cells, num_cells))
                 if activation_class is not None:
-                    self.layers.append(activation_class)
+                    self.layers.append(activation_class())
             self.layers.append(nn.Linear(num_cells, out_features))
-            self.layers.append(activation_class)
+            self.layers.append(activation_class())
 
         self.device = device
         self.to(device)
