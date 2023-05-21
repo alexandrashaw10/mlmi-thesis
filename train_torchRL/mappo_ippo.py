@@ -3,7 +3,7 @@ import time
 import torch
 import wandb
 
-from models.torch_mlp import MultiAgentMLP
+from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
 
 from tensordict.nn import TensorDictModule
 from modules.tensordict_module import exploration
@@ -51,7 +51,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
     # Policy
     actor_net = nn.Sequential(
-        MultiAgentMLP(
+        LipNormedMultiAgentMLP(
             n_agent_inputs=env.observation_spec["observation"].shape[-1],
             # two times the output because we want mu and sigma for the distribution
             n_agent_outputs=2 * env.action_spec.shape[-1], 
@@ -88,7 +88,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     )
 
     # Critic
-    module = MultiAgentMLP(
+    module = LipNormedMultiAgentMLP(
         n_agent_inputs=env.observation_spec["observation"].shape[-1],
         n_agent_outputs=1, # why is the agent output only 1 ? for the critic? should be centralized critic for MAPPO
         # but why does this mean that the n_agent_outputs = 1 ?
@@ -168,6 +168,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
 
 	# where does the actual sampling happen to fill the replay buffer ?
+    if not model_config["constrain_lipschitz"]:
+        print('Training without lipschitz constraint and with gradient clipping')
 
     total_time = 0
     total_frames = 0
@@ -177,7 +179,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         print(f"\nIteration {i}")
 
         sampling_time = time.time() - sampling_start
-        print(f"Sampling took {sampling_time}")
+        print(f"Sampling took: {sampling_time}")
 
 		# disables local gradients, so it doesn't call backwards()
         with torch.no_grad(): # no operation should build the computation graph
@@ -205,7 +207,10 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
                     + loss_vals["loss_entropy"]
                 )
 
+                backward_start = time.time()
                 loss_value.backward()
+                backward_time = time.time() - backward_start
+                print(f"Training took: {backward_time}")
 
                 if not model_config["constrain_lipschitz"]:
                     total_norm = torch.nn.utils.clip_grad_norm_(
@@ -283,7 +288,7 @@ if __name__ == "__main__":
         torch.manual_seed(seed)
 
         # Log
-        write_logs = True
+        write_logs = False
 
         # Sampling
         frames_per_batch = 60_000  # Frames sampled each sampling iteration
@@ -296,7 +301,7 @@ if __name__ == "__main__":
         env_config = {
             # Scenario
             "scenario_name": "het_mass",
-            "n_agents": 3,
+            "n_agents": 2,
         }
 
         config = {
@@ -316,7 +321,7 @@ if __name__ == "__main__":
             "memory_size": memory_size,
             "vmas_device": vmas_device,
             # Training
-            "num_epochs": 45,  # optimization steps per batch of data collected
+            "num_epochs": 15,  # optimization steps per batch of data collected
             "minibatch_size": 4096,  # size of minibatches used in each epoch
             "lr": 5e-5, # what algorithm is using this learning rate ?
             "max_grad_norm": 40.0,
@@ -330,8 +335,7 @@ if __name__ == "__main__":
             "shared_parameters": True, # True = homogeneous, False = Heterogeneous
             "centralised_critic": True,  # MAPPO if True, IPPO if False
             "MLP_activation": nn.Tanh,
-            "lip_actor": False, # lipschitz constrain the actor
-            "lip_critic": False, # lipschitz constrain the critic
+            "constrain_lipschitz": True,
             "lip_sigma": 1.0,
             "mlp_hidden_params":256,
             "mlp_depth":3,
