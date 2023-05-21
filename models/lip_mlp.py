@@ -13,11 +13,11 @@ class LipNormedMLP(nn.Module):
     def __init__(self, in_features: int, out_features: int, 
                  depth: int, num_cells: int, 
                  activation_class: nn.Module, device: torch.device | str | int | None = None,
-                 lip_constrained: bool = False, sigma: float | None = None):
+                 lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False):
         super().__init__()
 
         # credit to monotonenorm package
-        def lipschitz_norm(layer: nn.Linear, always_norm: False, sigma: float | None):
+        def lipschitz_norm(layer: nn.Linear):
             '''
             layer - the nn.Linear layer to normalize
             always_norm - always normalize the weight matrix to the max_norm if True. Default is False so it can be < max_norm
