@@ -16,6 +16,9 @@ class LipNormedMLP(nn.Module):
                  lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False):
         super().__init__()
 
+        if lip_constrained:
+            max_norm = sigma ** (1 / depth)
+
         # credit to monotonenorm package
         def lipschitz_norm(layer: nn.Linear):
             '''
@@ -41,7 +44,7 @@ class LipNormedMLP(nn.Module):
                     # return norm_W
                     return W
             
-            #register_parametrization(layer, "weight", LipNormalize())
+            register_parametrization(layer, "weight", LipNormalize())
 
             return layer
 
@@ -80,7 +83,10 @@ class LipNormedMLP(nn.Module):
 
     def forward(self, input_data):
         # does this need to include something with the normalization to work?
+        # forward_start = time.time()
         for layer in self.layers:
             input_data = layer(input_data)
+            # end_time = time.time() - forward_start
+            # print(f"Sampling took: {forward_start}")
         return input_data
     
