@@ -46,6 +46,7 @@ class LipNormedMultiAgentMLP(nn.Module):
                     device=device,
                     lip_constrained=lip_constrained,
                     sigma=sigma,
+                    always_norm = False, # need to add this to the config
                 )
                 for _ in range(self.n_agents if not self.share_params else 1)
             ]
