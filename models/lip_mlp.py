@@ -30,18 +30,18 @@ class LipNormedMLP(nn.Module):
                     norms = W.abs().sum(axis=0) # compute 1-norm of W
                     
                     if not always_norm:
-                        # take the maximum of 1s or the norm / max_norm (which could be larger than 1)
+                        # 1 / max_norm is the lambda ^ (-1/depth) term in the paper
                         norms = torch.max(torch.ones_like(norms), norms / max_norm)
                     else:
                         # otherwise just take the norm divided by the max_norm
                         norm_W = norm_W / max_norm
 
-                    weight = W / torch.max(norm_W, torch.ones_like(norm_W)*1e-10) # what does this do ?
+                    weight = W / torch.max(norm_W, torch.ones_like(norm_W)*1e-10) # second term protects from divide by zero errors
 
                     return weight
             
             register_parametrization(layer, "weight", LipNormalize())
-            
+
             # return direct_norm(
             #     module,  # the layer to constrain
             #     "one",  # |W|_1 constraint type
