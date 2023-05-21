@@ -51,11 +51,7 @@ class LipNormedMLP(nn.Module):
 
     def forward(self, input_data):
         # does this need to include something with the normalization to work?
-        forward_start = time.time()
         for layer in self.layers:
             input_data = layer(input_data)
-            layer_time = time.time() - forward_start
-            print(f"Forward took {layer_time}")
-            forward_start = time.time()
         return input_data
     

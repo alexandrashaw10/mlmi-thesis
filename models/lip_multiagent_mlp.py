@@ -6,8 +6,9 @@ import torch
 from torch import nn
 
 #from torchrl.modules import MLP
-from lip_mlp import LipNormedMLP
+from models.lip_mlp import LipNormedMLP
 
+# MLP model which uses the newly create MLP
 class LipNormedMultiAgentMLP(nn.Module):
     def __init__(
         self,

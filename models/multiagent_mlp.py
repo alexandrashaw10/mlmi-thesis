@@ -5,6 +5,7 @@ from torch import nn
 
 from torchrl.modules import MLP
 
+# original multiagent MLP which doesn't use the new MLP model
 class MultiAgentMLP(nn.Module):
     def __init__(
         self,

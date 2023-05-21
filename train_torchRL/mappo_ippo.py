@@ -207,10 +207,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
                     + loss_vals["loss_entropy"]
                 )
 
-                backward_start = time.time()
                 loss_value.backward()
-                backward_time = time.time() - backward_start
-                print(f"Training took: {backward_time}")
 
                 if not model_config["constrain_lipschitz"]:
                     total_norm = torch.nn.utils.clip_grad_norm_(
