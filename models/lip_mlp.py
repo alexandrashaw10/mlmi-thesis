@@ -42,6 +42,8 @@ class LipNormedMLP(nn.Module):
             
             register_parametrization(layer, "weight", LipNormalize())
 
+            return layer
+
             # return direct_norm(
             #     module,  # the layer to constrain
             #     "one",  # |W|_1 constraint type
