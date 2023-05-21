@@ -30,19 +30,18 @@ class LipNormedMLP(nn.Module):
 
             class LipNormalize(nn.Module):
                 def forward(self, W):
-                    # norms = W.abs().sum(axis=0) # compute 1-norm of W
+                    norms = W.abs().sum(axis=0) # compute 1-norm of W
                     
-                    # if not always_norm:
-                    #     # 1 / max_norm is the lambda ^ (-1/depth) term in the paper
-                    #     norms = torch.max(torch.ones_like(norms), norms / max_norm)
-                    # else:
-                    #     # otherwise just take the norm divided by the max_norm
-                    #     norms = norms / max_norm
+                    if not always_norm:
+                        # 1 / max_norm is the lambda ^ (-1/depth) term in the paper
+                        norms = torch.max(torch.ones_like(norms), norms / max_norm)
+                    else:
+                        # otherwise just take the norm divided by the max_norm
+                        norms = norms / max_norm
 
-                    # norm_W = W / torch.max(norms, torch.ones_like(norms)*1e-10) # second term protects from divide by zero errors
+                    norm_W = W / torch.max(norms, torch.ones_like(norms)*1e-10) # second term protects from divide by zero errors
 
-                    # return norm_W
-                    return W
+                    return norm_W
             
             register_parametrization(layer, "weight", LipNormalize())
 
