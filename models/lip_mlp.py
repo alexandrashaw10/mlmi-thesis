@@ -23,7 +23,7 @@ class LipNormedMLP(nn.Module):
             always_norm - always normalize the weight matrix to the max_norm if True. Default is False so it can be < max_norm
             max_norm - the lipschitz constraint on the network
             '''
-            max_norm = sigma ** (1 / depth) # the norm of each layer
+            #max_norm = sigma ** (1 / depth) # the norm of each layer
 
             class LipNormalize(nn.Module):
                 def forward(self, W):
@@ -41,7 +41,7 @@ class LipNormedMLP(nn.Module):
                     # return norm_W
                     return W
             
-            register_parametrization(layer, "weight", LipNormalize())
+            #register_parametrization(layer, "weight", LipNormalize())
 
             return layer
 
