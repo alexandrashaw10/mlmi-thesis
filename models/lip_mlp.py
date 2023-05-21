@@ -34,11 +34,11 @@ class LipNormedMLP(nn.Module):
                         norms = torch.max(torch.ones_like(norms), norms / max_norm)
                     else:
                         # otherwise just take the norm divided by the max_norm
-                        norm_W = norm_W / max_norm
+                        norms = norms / max_norm
 
-                    weight = W / torch.max(norm_W, torch.ones_like(norm_W)*1e-10) # second term protects from divide by zero errors
+                    norm_W = W / torch.max(norms, torch.ones_like(norms)*1e-10) # second term protects from divide by zero errors
 
-                    return weight
+                    return norm_W
             
             register_parametrization(layer, "weight", LipNormalize())
 
