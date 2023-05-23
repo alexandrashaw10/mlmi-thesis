@@ -7,13 +7,15 @@ from torch import nn
 #from torchrl.modules import MLP
 # from monotonenorm import direct_norm
 from torch.nn.utils.parametrize import register_parametrization
+from monotonenorm import GroupSort
 
 
 class LipNormedMLP(nn.Module):
     def __init__(self, in_features: int, out_features: int, 
                  depth: int, num_cells: int, 
                  activation_class: nn.Module, device: torch.device | str | int | None = None,
-                 lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False):
+                 lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False,
+                 groupsort_n_groups: int | None = 4):
         super().__init__()
 
         if lip_constrained:
@@ -55,26 +57,30 @@ class LipNormedMLP(nn.Module):
 
         self.layers = nn.ModuleList()
 
+        def create_activation_instance():
+            if activation_class is GroupSort:
+                return GroupSort(groupsort_n_groups)
+            return activation_class()
+
         # lipschitz constraints are added to the linear layer forward pre-hook 
         # so that it is normalized before the backward pass and the normalized gradients are passed through
         if lip_constrained:
             assert sigma is not None, "if lipschitz constraint active, sigma must be a float"
+            assert activation_class is not None # could have functionality for no activation later
 
             self.layers.append(lipschitz_norm(nn.Linear(in_features, num_cells)))
-            self.layers.append(activation_class())
+            self.layers.append(create_activation_instance())
             for d in range(1,depth-1):
                 self.layers.append(lipschitz_norm(nn.Linear(num_cells, num_cells)))
-                if activation_class is not None:
-                    self.layers.append(activation_class())
+                self.layers.append(create_activation_instance())
             self.layers.append(lipschitz_norm(nn.Linear(num_cells, out_features)))
 
         else:
             self.layers.append(nn.Linear(in_features, num_cells))
-            self.layers.append(activation_class())
+            self.layers.append(create_activation_instance())
             for d in range(1,depth-1):
                 self.layers.append(nn.Linear(num_cells, num_cells))
-                if activation_class is not None:
-                    self.layers.append(activation_class())
+                self.layers.append(create_activation_instance())
             self.layers.append(nn.Linear(num_cells, out_features))
 
         self.device = device

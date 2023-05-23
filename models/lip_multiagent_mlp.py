@@ -23,6 +23,7 @@ class LipNormedMultiAgentMLP(nn.Module):
         activation_class, # try with GroupSort and with tanh
         lip_constrained=False,
         sigma=1.0,
+        groupsort_n_groups=8,
     ):
         super().__init__()
         
@@ -47,6 +48,7 @@ class LipNormedMultiAgentMLP(nn.Module):
                     lip_constrained=lip_constrained,
                     sigma=sigma,
                     always_norm = False, # need to add this to the config
+                    groupsort_n_groups=groupsort_n_groups,
                 )
                 for _ in range(self.n_agents if not self.share_params else 1)
             ]

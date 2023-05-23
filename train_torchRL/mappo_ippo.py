@@ -18,6 +18,7 @@ from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
+from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training
 
 
@@ -64,6 +65,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             activation_class=model_config["MLP_activation"], # original: Tanh
             lip_constrained=model_config["constrain_lipschitz"],
             sigma=model_config["lip_sigma"],
+            groupsort_n_groups=model_config["groupsort_n_groups"],
         ),
         NormalParamExtractor(),
     )
@@ -101,6 +103,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         activation_class=model_config["MLP_activation"],
         lip_constrained=model_config["constrain_lipschitz"],
         sigma=model_config["lip_sigma"],
+        groupsort_n_groups=model_config["groupsort_n_groups"],
     )
     value_module = ValueOperator(
         module=module, # didn't need a TensorDictModule here, probably because we don't have out_keys ?
@@ -331,7 +334,8 @@ if __name__ == "__main__":
         model_config = {
             "shared_parameters": True, # True = homogeneous, False = Heterogeneous
             "centralised_critic": True,  # MAPPO if True, IPPO if False
-            "MLP_activation": nn.Tanh,
+            "MLP_activation": nn.Tanh, # can try with GroupSort activation instead
+            "GroupSort_n_groups": 8,
             "constrain_lipschitz": True,
             "lip_sigma": 1.0,
             "mlp_hidden_params":256,
