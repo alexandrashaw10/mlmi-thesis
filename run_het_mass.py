@@ -53,6 +53,11 @@ parser.add_argument('--lip_sigma', type=float, default=1.0)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 
+# run parameters
+# will run each constant for the number of seeds that are provided
+parser.add_argument('--num_constants', type=int, default=5)
+parser.add_argument('--num_seeds', type=int, default=3)
+
 args = parser.parse_args()
 
 config = {
@@ -97,3 +102,38 @@ env_config = {
     "scenario_name": "het_mass",
     "n_agents": 2,
 }
+
+# need to create a method for saving checkpoints: https://pytorch.org/tutorials/beginner/saving_loading_models.html
+# or can just create a plotting method which runs after each checkpoint is trained - can run off of the best performing seed in each round
+
+# example plotting function from ChatGPT: 
+# import numpy as np
+# import matplotlib.pyplot as plt
+
+# def plot_function_arrows(func):
+#     x = np.linspace(-4, 4, 9)  # x-axis values (-4, -3, ..., 3, 4)
+#     y = np.linspace(-4, 4, 9)  # y-axis values (-4, -3, ..., 3, 4)
+#     X, Y = np.meshgrid(x, y)  # create a grid of x, y values
+
+#     U = np.zeros_like(X)  # initialize arrow x-components
+#     V = np.zeros_like(Y)  # initialize arrow y-components
+
+#     for i in range(len(x)):
+#         for j in range(len(y)):
+#             U[i, j] = func(X[i, j], Y[i, j])  # calculate arrow x-component
+#             V[i, j] = func(Y[i, j], X[i, j])  # calculate arrow y-component
+
+#     fig, ax = plt.subplots()
+#     ax.quiver(X, Y, U, V)  # plot arrows
+
+#     ax.set_xlabel('X')
+#     ax.set_ylabel('Y')
+#     ax.set_title('Function Arrows')
+
+#     plt.show()
+
+# # Example usage
+# def my_function(x, y):
+#     return x**2 + y**2
+
+# plot_function_arrows(my_function)
