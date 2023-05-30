@@ -21,6 +21,8 @@ from torchrl.record.loggers.wandb import WandbLogger
 from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training
 
+from utils import PlotUtils
+
 
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
@@ -160,8 +162,9 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             + ("MA" if model_config["centralised_critic"] else "I")
             + "PPO"
         )
+        exp_name = generate_exp_name(env_config["scenario_name"], model_name)
         logger = WandbLogger(
-            exp_name=generate_exp_name(env_config["scenario_name"], model_name),
+            exp_name=exp_name,
             project=f"torchrl_{env_config['scenario_name']}",
             group=model_name,
             save_code=True,
@@ -274,6 +277,17 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         if log:
             logger.experiment.log({}, commit=True)
         sampling_start = time.time()
+
+
+    if log:
+        SAVE_PATH = exp_name + '/model.pth'
+        torch.save(policy_module.state_dict(), SAVE_PATH)
+        PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['device'])
+
+        artifact = wandb.Artifact(name=f"model-{exp_name}", type='model')
+        artifact.add_file(exp_name + '/model.pth')
+        logger.experiment.log(artifact)
+
     wandb.finish()
 
 

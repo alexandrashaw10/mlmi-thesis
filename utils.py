@@ -956,15 +956,17 @@ class EvaluationUtils:
 class PlotUtils:
     @staticmethod
     def plot_function_arrows(
-        policy_state_dict: Dict, 
-        config: Dict, 
-        model_config: Dict, 
+        SAVE_PATH: str,
+        seed: int, 
+        config: Dict,
+        model_config: Dict,
         env_config: Dict,
-        STATE_DICT_SAVE_PATH: str,
-        seed: int
+        device: str,
     ):
-        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=config['vmas_device'])
-        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=config['vmas_device'])
+        # if torch.has_cuda: # have to do something to make sure the devices are working properly
+        #     USING_GPU = True
+        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=device)
+        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=device)
  
         # create a grid of x, y values for evaluation
         X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
@@ -983,7 +985,7 @@ class PlotUtils:
             **env_config,
         )
 
-        # specify the form of the actor_net
+        # # specify the form of the actor_net
         actor_net = nn.Sequential(
             LipNormedMultiAgentMLP(
                 n_agent_inputs=env.observation_spec["observation"].shape[-1],
@@ -1007,7 +1009,8 @@ class PlotUtils:
             actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
         )
 
-        policy_module.load_state_dict(torch.load(STATE_DICT_SAVE_PATH))
+        policy_module.load_state_dict(torch.load(SAVE_PATH))
+        policy_module.to(device) # sends it to the GPU if used
         policy_module.eval()
 
         outputs = policy_module(grid_inputs)
@@ -1018,8 +1021,8 @@ class PlotUtils:
         fig, ax = plt.subplots()
         ax.quiver(X, Y, outputs['loc'][0], outputs['loc'][1])  # plot arrows
 
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_title('Function Arrows')
+        ax.set_xlabel('V0')
+        ax.set_ylabel('V1')
+        ax.set_title('Policy')
 
-        # wandb.log({"chart": plt})
+        wandb.log({"policy": fig})
