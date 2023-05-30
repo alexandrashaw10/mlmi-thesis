@@ -20,6 +20,9 @@ from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from logging_utils import log_evaluation, log_training
 
+# train this run using MAPPO and HetMAPPO
+from train_torchRL.mappo_ippo import trainMAPPO_IPPO
+
 parser = argparse.ArgumentParser(description = 'Running Het Mass Test')
 
 # RL
@@ -55,7 +58,7 @@ parser.add_argument('--mlp_depth', type=int, default=3)
 
 # run parameters
 # will run each constant for the number of seeds that are provided
-parser.add_argument('--num_constants', type=int, default=5)
+parser.add_argument('--num_constants', type=int, default=5) # don't go over 
 parser.add_argument('--num_seeds', type=int, default=3)
 
 args = parser.parse_args()
@@ -92,7 +95,7 @@ model_config = {
     "centralised_critic": args.centralised_critic, # MAPPO if True, IPPO if False
     "MLP_activation": args.MLP_activation, # TanH may not be suitable for this model, as we might need GroupSort
     "constrain_lipschitz": args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
-    "lip_sigma": args.lip_sigma,
+    "lip_sigma": args.lip_sigma, # will be overwritten by the constraints
     "mlp_hidden_params": args.mlp_hidden_params,
     "mlp_depth": args.mlp_depth,
 }
@@ -102,6 +105,18 @@ env_config = {
     "scenario_name": "het_mass",
     "n_agents": 2,
 }
+
+seeds = [0, 1, 42, 353, 58, 102, 471]
+constants = [1, 2, 24, 50, 500]
+
+for s in range(args.num_seeds):
+    torch.manual_seed(seeds[s])
+    config.seed = seeds[s]
+
+    for k in range(args.num_constants):
+        # update the config with the current seed and constant
+        model_config.lip_sigma = constants[k]
+        trainMAPPO_IPPO(seeds[s], config, model_config, env_config, log=True, plot=True)
 
 # need to create a method for saving checkpoints: https://pytorch.org/tutorials/beginner/saving_loading_models.html
 # or can just create a plotting method which runs after each checkpoint is trained - can run off of the best performing seed in each round
