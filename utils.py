@@ -33,6 +33,12 @@ from rllib_differentiable_comms.multi_action_dist import (
 )
 from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
 
+from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
+from vmas_beta.vmas import VmasEnv
+from tensordict.nn.distributions import NormalParamExtractor
+from tensordict.nn import TensorDictModule
+import matplotlib.pyplot as plt
+
 
 class PathUtils:
     scratch_dir = (
@@ -946,3 +952,74 @@ class EvaluationUtils:
 
             return noise_title, noise_name
         return "", ""
+
+class PlotUtils:
+    @staticmethod
+    def plot_function_arrows(
+        policy_state_dict: Dict, 
+        config: Dict, 
+        model_config: Dict, 
+        env_config: Dict,
+        STATE_DICT_SAVE_PATH: str,
+        seed: int
+    ):
+        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=config['vmas_device'])
+        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=config['vmas_device'])
+ 
+        # create a grid of x, y values for evaluation
+        X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
+
+        grid_inputs = torch.stack([X, Y], dim=-1)
+
+        # create a VMAS env just so that we have the observation size and action size
+        env = VmasEnv(
+            scenario=env_config["scenario_name"],
+            num_envs=0,
+            continuous_actions=True,
+            max_steps=0,
+            device=None,
+            seed=seed,
+            # Scenario kwargs
+            **env_config,
+        )
+
+        # specify the form of the actor_net
+        actor_net = nn.Sequential(
+            LipNormedMultiAgentMLP(
+                n_agent_inputs=env.observation_spec["observation"].shape[-1],
+                # two times the output because we want mu and sigma for the distribution
+                n_agent_outputs=2 * env.action_spec.shape[-1], 
+                n_agents=env.n_agents,
+                centralised=False, # policy for MAPPO is not centralized
+                share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
+                device=config["training_device"],
+                depth=model_config["mlp_depth"], # changed to 3
+                num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
+                activation_class=model_config["MLP_activation"], # original: Tanh
+                lip_constrained=model_config["constrain_lipschitz"],
+                sigma=model_config["lip_sigma"],
+                groupsort_n_groups=model_config["groupsort_n_groups"],
+            ),
+            NormalParamExtractor(),
+        )
+        # nn.Module used to map the input to the output parameter space
+        policy_module = TensorDictModule(
+            actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
+        )
+
+        policy_module.load_state_dict(torch.load(STATE_DICT_SAVE_PATH))
+        policy_module.eval()
+
+        outputs = policy_module(grid_inputs)
+        # what should the batch size be
+        # what does the output look like
+        print(outputs)
+
+        fig, ax = plt.subplots()
+        ax.quiver(X, Y, outputs['loc'][0], outputs['loc'][1])  # plot arrows
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_title('Function Arrows')
+
+        # wandb.log({"chart": plt})
