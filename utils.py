@@ -965,8 +965,8 @@ class PlotUtils:
     ):
         # if torch.has_cuda: # have to do something to make sure the devices are working properly
         #     USING_GPU = True
-        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=device)
-        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13), device=device)
+        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
+        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
  
         # create a grid of x, y values for evaluation
         X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
@@ -976,10 +976,10 @@ class PlotUtils:
         # create a VMAS env just so that we have the observation size and action size
         env = VmasEnv(
             scenario=env_config["scenario_name"],
-            num_envs=0,
+            num_envs=config["vmas_envs"],
             continuous_actions=True,
-            max_steps=0,
-            device=None,
+            max_steps=config["max_steps"],
+            device=config["vmas_device"],
             seed=seed,
             # Scenario kwargs
             **env_config,
@@ -1012,6 +1012,13 @@ class PlotUtils:
         policy_module.load_state_dict(torch.load(SAVE_PATH))
         policy_module.to(device) # sends it to the GPU if used
         policy_module.eval()
+
+        # want the last dimension of the grid_input tensor (which should have the two input velocities) and want to also pass in 
+        # position
+        # so it should be ([p0 v0 p1 v1], [p1 v1 p0 v0]) as the last dimension of the tensor
+        # create a new tensor for each of the 13 x 13 locations
+        # save this output into a numpy array of size 13 x 13 x 2 (first dim is U second dim is V in the arrow) for the mean/loc
+        # save the second part of the output into a 13 x 13 x 1 where the value is the scale/std deviation
 
         outputs = policy_module(grid_inputs)
         # what should the batch size be

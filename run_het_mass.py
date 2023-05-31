@@ -19,6 +19,7 @@ from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from logging_utils import log_evaluation, log_training
+import argparse
 
 # train this run using MAPPO and HetMAPPO
 from train_torchRL.mappo_ippo import trainMAPPO_IPPO
@@ -27,7 +28,7 @@ parser = argparse.ArgumentParser(description = 'Running Het Mass Test')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9)
-parser.add_argument('--seed', type=int, default=seed)
+parser.add_argument('--seed', type=int, default=0)
 # PPO
 parser.add_argument('--lmbda', type=float, default=0.9)
 parser.add_argument('--entropy_eps', type=int, default=0)
@@ -51,8 +52,9 @@ parser.add_argument('--evaluation_episodes', type=int, default=200)
 parser.add_argument('--shared_parameters', type=bool, default=True) # True = homogeneous, False = Heterogeneous
 parser.add_argument('--centralised_critic', type=bool, default=True) # MAPPO if True, IPPO if False
 parser.add_argument('--MLP_activation', type=nn.Module, default=nn.Tanh) # TanH may not be suitable for this model, as we might need GroupSort
-parser.add_argument('--constrain_lipschitz', type=bool, default=True) # constrain the lipschitz constraint so that we can test if it runs
+parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
 parser.add_argument('--lip_sigma', type=float, default=1.0)
+parser.add_argument('--groupsort_n_groups', type=int, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 
@@ -60,6 +62,7 @@ parser.add_argument('--mlp_depth', type=int, default=3)
 # will run each constant for the number of seeds that are provided
 parser.add_argument('--num_constants', type=int, default=5) # don't go over 
 parser.add_argument('--num_seeds', type=int, default=3)
+parser.add_argument('--log', type=bool, default=True)
 
 args = parser.parse_args()
 
@@ -97,6 +100,7 @@ model_config = {
     "constrain_lipschitz": args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
     "lip_sigma": args.lip_sigma, # will be overwritten by the constraints
     "mlp_hidden_params": args.mlp_hidden_params,
+    "groupsort_n_groups": args.groupsort_n_groups,
     "mlp_depth": args.mlp_depth,
 }
 
@@ -106,49 +110,5 @@ env_config = {
     "n_agents": 2,
 }
 
-seeds = [0, 1, 42, 353, 58, 102, 471]
-constants = [1, 2, 24, 50, 500]
-
-for s in range(args.num_seeds):
-    torch.manual_seed(seeds[s])
-    config.seed = seeds[s]
-
-    for k in range(args.num_constants):
-        # update the config with the current seed and constant
-        model_config.lip_sigma = constants[k]
-        trainMAPPO_IPPO(seeds[s], config, model_config, env_config, log=True, plot=True)
-
-# need to create a method for saving checkpoints: https://pytorch.org/tutorials/beginner/saving_loading_models.html
-# or can just create a plotting method which runs after each checkpoint is trained - can run off of the best performing seed in each round
-
-# example plotting function from ChatGPT: 
-# import numpy as np
-# import matplotlib.pyplot as plt
-
-# def plot_function_arrows(func):
-#     x = np.linspace(-4, 4, 9)  # x-axis values (-4, -3, ..., 3, 4)
-#     y = np.linspace(-4, 4, 9)  # y-axis values (-4, -3, ..., 3, 4)
-#     X, Y = np.meshgrid(x, y)  # create a grid of x, y values
-
-#     U = np.zeros_like(X)  # initialize arrow x-components
-#     V = np.zeros_like(Y)  # initialize arrow y-components
-
-#     for i in range(len(x)):
-#         for j in range(len(y)):
-#             U[i, j] = func(X[i, j], Y[i, j])  # calculate arrow x-component
-#             V[i, j] = func(Y[i, j], X[i, j])  # calculate arrow y-component
-
-#     fig, ax = plt.subplots()
-#     ax.quiver(X, Y, U, V)  # plot arrows
-
-#     ax.set_xlabel('X')
-#     ax.set_ylabel('Y')
-#     ax.set_title('Function Arrows')
-
-#     plt.show()
-
-# # Example usage
-# def my_function(x, y):
-#     return x**2 + y**2
-
-# plot_function_arrows(my_function)
+torch.manual_seed(args.seed)
+trainMAPPO_IPPO(args.seed, config, model_config, env_config, log=args.log)

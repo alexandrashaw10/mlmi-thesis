@@ -20,6 +20,8 @@ from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training
+import os
+from os import path
 
 from utils import PlotUtils
 
@@ -280,9 +282,14 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
 
     if log:
-        SAVE_PATH = exp_name + '/model.pth'
+        SAVE_DIR = './saved_models'
+        if not path.isdir(SAVE_DIR):
+            os.makedirs(SAVE_DIR)
+
+        SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
+        
         torch.save(policy_module.state_dict(), SAVE_PATH)
-        PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['device'])
+        PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
 
         artifact = wandb.Artifact(name=f"model-{exp_name}", type='model')
         artifact.add_file(exp_name + '/model.pth')
