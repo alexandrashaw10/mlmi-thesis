@@ -965,71 +965,83 @@ class PlotUtils:
     ):
         # if torch.has_cuda: # have to do something to make sure the devices are working properly
         #     USING_GPU = True
-        v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
-        v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
- 
-        # create a grid of x, y values for evaluation
-        X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
+        with torch.no_grad():
+            v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
+            v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
+    
+            # create a grid of x, y values for evaluation
+            X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
 
-        grid_inputs = torch.stack([X, Y], dim=-1)
+            grid_inputs = torch.stack([X, Y], dim=-1)
 
-        # create a VMAS env just so that we have the observation size and action size
-        env = VmasEnv(
-            scenario=env_config["scenario_name"],
-            num_envs=config["vmas_envs"],
-            continuous_actions=True,
-            max_steps=config["max_steps"],
-            device=config["vmas_device"],
-            seed=seed,
-            # Scenario kwargs
-            **env_config,
-        )
+            # create a VMAS env just so that we have the observation size and action size
+            env = VmasEnv(
+                scenario=env_config["scenario_name"],
+                num_envs=config["vmas_envs"], # maybe need to use this to set the batch dimension to match the eval locations
+                continuous_actions=True,
+                max_steps=config["max_steps"],
+                device=config["vmas_device"],
+                seed=seed,
+                # Scenario kwargs
+                **env_config,
+            )
 
-        # # specify the form of the actor_net
-        actor_net = nn.Sequential(
-            LipNormedMultiAgentMLP(
-                n_agent_inputs=env.observation_spec["observation"].shape[-1],
-                # two times the output because we want mu and sigma for the distribution
-                n_agent_outputs=2 * env.action_spec.shape[-1], 
-                n_agents=env.n_agents,
-                centralised=False, # policy for MAPPO is not centralized
-                share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
-                device=config["training_device"],
-                depth=model_config["mlp_depth"], # changed to 3
-                num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
-                activation_class=model_config["MLP_activation"], # original: Tanh
-                lip_constrained=model_config["constrain_lipschitz"],
-                sigma=model_config["lip_sigma"],
-                groupsort_n_groups=model_config["groupsort_n_groups"],
-            ),
-            NormalParamExtractor(),
-        )
-        # nn.Module used to map the input to the output parameter space
-        policy_module = TensorDictModule(
-            actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
-        )
+            # # specify the form of the actor_net
+            actor_net = nn.Sequential(
+                LipNormedMultiAgentMLP(
+                    n_agent_inputs=env.observation_spec["observation"].shape[-1],
+                    # two times the output because we want mu and sigma for the distribution
+                    n_agent_outputs=2 * env.action_spec.shape[-1], 
+                    n_agents=env.n_agents,
+                    centralised=False, # policy for MAPPO is not centralized
+                    share_params=model_config["shared_parameters"], # parameters are shared for homogeneous
+                    device=config["training_device"],
+                    depth=model_config["mlp_depth"], # changed to 3
+                    num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
+                    activation_class=model_config["MLP_activation"], # original: Tanh
+                    lip_constrained=model_config["constrain_lipschitz"],
+                    sigma=model_config["lip_sigma"],
+                    groupsort_n_groups=model_config["groupsort_n_groups"],
+                ),
+                NormalParamExtractor(),
+            )
+            # nn.Module used to map the input to the output parameter space
+            policy_module = TensorDictModule(
+                actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
+            )
 
-        policy_module.load_state_dict(torch.load(SAVE_PATH))
-        policy_module.to(device) # sends it to the GPU if used
-        policy_module.eval()
+            policy_module.load_state_dict(torch.load(SAVE_PATH))
+            policy_module.to(device) # sends it to the GPU if used
+            policy_module.eval()
 
-        # want the last dimension of the grid_input tensor (which should have the two input velocities) and want to also pass in 
-        # position
-        # so it should be ([p0 v0 p1 v1], [p1 v1 p0 v0]) as the last dimension of the tensor
-        # create a new tensor for each of the 13 x 13 locations
-        # save this output into a numpy array of size 13 x 13 x 2 (first dim is U second dim is V in the arrow) for the mean/loc
-        # save the second part of the output into a 13 x 13 x 1 where the value is the scale/std deviation
+            # want the last dimension of the grid_input tensor (which should have the two input velocities) and want to also pass in 
+            # position
+            # so it should be ([p0 v0 p1 v1], [p1 v1 p0 v0]) as the last dimension of the tensor
+            # create a new tensor for each of the 13 x 13 locations
+            # save this output into a numpy array of size 13 x 13 x 2 (first dim is U second dim is V in the arrow) for the mean/loc
+            # save the second part of the output into a 13 x 13 x 1 where the value is the scale/std deviation
 
-        outputs = policy_module(grid_inputs)
-        # what should the batch size be
-        # what does the output look like
-        print(outputs)
+            # batch_dim, env.n_agents, env.observation_spec["observation"].shape[-1] # shape of the input tensor
+            batched_inputs = torch.flatten(grid_inputs, start_dim=0, end_dim=1) # 169 x 2 
+            batched_inputs = torch.unsqueeze(batched_inputs, dim=-1) # 169 x 2 x 1
+            zeros = torch.zeros_like(batched_inputs) # 169 x 2 x 1
 
-        fig, ax = plt.subplots()
-        ax.quiver(X, Y, outputs['loc'][0], outputs['loc'][1])  # plot arrows
+            batched_inputs = torch.cat([zeros,batched_inputs], dim=-1) # 169 x 2 x 2
 
-        ax.set_xlabel('V0')
-        ax.set_ylabel('V1')
-        ax.set_title('Policy')
+            flipped_clone = torch.flip(torch.clone(batched_inputs), dims=[:-1]) # 169 x 2 x 2
+            batched_inputs = torch.cat([batched_inputs, flipped_clone], dim=-1) # 169 x 2 x 4
 
-        wandb.log({"policy": fig})
+            print(batched_inputs)
+
+            outputs = policy_module(batched_inputs)
+
+            print(outputs)
+
+            fig, ax = plt.subplots()
+            ax.quiver(X, Y, outputs['loc'][0], outputs['loc'][1])  # plot arrows
+
+            ax.set_xlabel('V0')
+            ax.set_ylabel('V1')
+            ax.set_title('Policy')
+
+            wandb.log({"policy": fig})

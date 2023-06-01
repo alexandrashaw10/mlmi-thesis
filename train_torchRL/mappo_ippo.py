@@ -31,6 +31,7 @@ def rendering_callback(env, td):
 
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
+    # if "scenario_name" == "simplified_het_mass": ... else env_config["scenario_name"]
     env = VmasEnv(
         scenario=env_config["scenario_name"],
         num_envs=config["vmas_envs"],
