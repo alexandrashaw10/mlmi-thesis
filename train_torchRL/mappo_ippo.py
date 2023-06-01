@@ -290,11 +290,13 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
         
         torch.save(policy_module.state_dict(), SAVE_PATH)
-        PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
 
-        artifact = wandb.Artifact(name=f"model-{exp_name}", type='model')
-        artifact.add_file(exp_name + '/model.pth')
-        logger.experiment.log(artifact)
+        # artifact = wandb.Artifact(name=f"model-{exp_name}", type='model')
+        # artifact.add_file(SAVE_PATH)
+        # logger.experiment.log_artifact(artifact)
+
+        plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
+        wandb.log({"plot": wandb.Image(plt)})
 
     wandb.finish()
 

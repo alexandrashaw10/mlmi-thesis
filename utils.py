@@ -966,8 +966,9 @@ class PlotUtils:
         # if torch.has_cuda: # have to do something to make sure the devices are working properly
         #     USING_GPU = True
         with torch.no_grad():
-            v0 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
-            v1 = torch.from_numpy(np.linspace(-0.4, 0.4, 13)).to(device)
+            NUM_EVAL_LOCS = 13
+            v0 = torch.from_numpy(np.linspace(-0.4, 0.4, NUM_EVAL_LOCS)).float().to(device)
+            v1 = torch.from_numpy(np.linspace(-0.4, 0.4, NUM_EVAL_LOCS)).float().to(device)
     
             # create a grid of x, y values for evaluation
             X, Y = torch.meshgrid(v0, v1, indexing='xy') # use xy indexing to match numpy meshgrid functionality
@@ -985,6 +986,10 @@ class PlotUtils:
                 # Scenario kwargs
                 **env_config,
             )
+
+            print(env.num_envs)
+            print(env.max_steps)
+            print(env.action_spec)
 
             # # specify the form of the actor_net
             actor_net = nn.Sequential(
@@ -1010,7 +1015,13 @@ class PlotUtils:
                 actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
             )
 
-            policy_module.load_state_dict(torch.load(SAVE_PATH))
+            # run = wandb.init()
+            # # must have weights and biases logged in in order to use 
+            # # entity/project-name/model_path
+            # artifact = run.use_artifact('alexshaw-mlmi-thesis/torchrl_het_mass/model-het_mass_MAPPO_31dcecef_23_06_01-16_13_23:v0/het_mass_MAPPO_31dcecef_23_06_01-16_13_23_model.pth', type='model')
+            # artifact_dir = artifact.download()
+
+            policy_module.load_state_dict(torch.load(SAVE_DIR)) # use SAVE_PATH for local
             policy_module.to(device) # sends it to the GPU if used
             policy_module.eval()
 
@@ -1024,24 +1035,34 @@ class PlotUtils:
             # batch_dim, env.n_agents, env.observation_spec["observation"].shape[-1] # shape of the input tensor
             batched_inputs = torch.flatten(grid_inputs, start_dim=0, end_dim=1) # 169 x 2 
             batched_inputs = torch.unsqueeze(batched_inputs, dim=-1) # 169 x 2 x 1
-            zeros = torch.zeros_like(batched_inputs) # 169 x 2 x 1
+            zeros = torch.zeros_like(batched_inputs).float() # 169 x 2 x 1
+            zeros = zeros.expand(-1, -1, 3).clone() # cloning in case this would cause problems, 169 x 2 x 3
 
-            batched_inputs = torch.cat([zeros,batched_inputs], dim=-1) # 169 x 2 x 2
+            batched_inputs = torch.cat([zeros, batched_inputs], dim=-1) # 169 x 2 x 4 [0, 0, 0, vela], [0, 0, 0, velb]
 
-            flipped_clone = torch.flip(torch.clone(batched_inputs), dims=[:-1]) # 169 x 2 x 2
-            batched_inputs = torch.cat([batched_inputs, flipped_clone], dim=-1) # 169 x 2 x 4
+            # flipped_clone required for SimplifiedHetMass because we have both agent's observations coming in 
+            # flipped_clone = torch.flip(torch.clone(batched_inputs), dims=[range(batched_inputs.dims() - 1)]) # 169 x 2 x 2
+            # batched_inputs = torch.cat([batched_inputs, flipped_clone], dim=-1) # 169 x 2 x 4
+            assert batched_inputs.shape[-1] == env.observation_spec["observation"].shape[-1]
+            assert batched_inputs.shape[-2] == env.n_agents
 
-            print(batched_inputs)
+            locs, scales = policy_module(batched_inputs)  # dist params x batch_dim x n_agents x n_agent-outputs
 
-            outputs = policy_module(batched_inputs)
-
-            print(outputs)
+            locs = locs.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *locs.shape[1:])
+            scales = scales.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *scales.shape[1:])
 
             fig, ax = plt.subplots()
-            ax.quiver(X, Y, outputs['loc'][0], outputs['loc'][1])  # plot arrows
+            ax.quiver(X, Y, locs[...,0,0], locs[...,0,1], color='g')  # plot arrows
+            ax.quiver(X, Y, locs[...,1,0], locs[...,1,1], color='b')  # plot arrows
 
-            ax.set_xlabel('V0')
-            ax.set_ylabel('V1')
+            ax.set_xlabel('Agent 0: v0')
+            ax.set_ylabel('Agent 1: v1')
             ax.set_title('Policy')
 
-            wandb.log({"policy": fig})
+            # plt.savefig('trial_policy.png')
+            # plt.show()
+
+            # wandb.finish()
+
+            return fig
+        # wandb.log({"policy": fig})

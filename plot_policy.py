@@ -1,30 +1,13 @@
-import time
-
-import torch
-import wandb
-
-from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
-
-from tensordict.nn import TensorDictModule
-from modules.tensordict_module import exploration
-from tensordict.nn.distributions import NormalParamExtractor
-from torch import nn
-from torchrl.collectors import SyncDataCollector
-from torchrl.data.replay_buffers import ReplayBuffer
-from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
-from torchrl.data.replay_buffers.storages import LazyTensorStorage
-from vmas_beta.vmas import VmasEnv # torchrl.envs.libs.vmas is the true package, but using a debug version
-from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
-from torchrl.objectives import ClipPPOLoss, ValueEstimators
-from torchrl.record.loggers import generate_exp_name
-from torchrl.record.loggers.wandb import WandbLogger
-from logging_utils import log_evaluation, log_training
 import argparse
+from torch import nn
+import os.path
 
-# train this run using MAPPO and HetMAPPO
-from train_torchRL.mappo_ippo import trainMAPPO_IPPO
+from utils import PlotUtils
 
-parser = argparse.ArgumentParser(description = 'Running Het Mass Test')
+SAVE_PATH = os.path.join('saved_models', 'het_mass_MAPPO_1b6e296e_23_05_31-11_47_58_model.pth')
+
+'''Need to run this with the same parameters as the training run. Can see these on the wandb dashboard'''
+parser = argparse.ArgumentParser(description = 'Plotting Policy')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9)
@@ -37,13 +20,13 @@ parser.add_argument('--clip_epsilon', type=float, default=0.2)
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=100)
 parser.add_argument('--n_iters', type=int, default=100)
-parser.add_argument('--vmas_device', type=str, default="cuda:0")
+parser.add_argument('--vmas_device', type=str, default="cpu")
 # Training
 parser.add_argument('--num_epochs', type=int, default=25)
 parser.add_argument('--minibatch_size', type=int, default=4096)
 parser.add_argument('--lr', type=float, default=5e-5)
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
-parser.add_argument('--training_device', type=str, default="cuda:0")
+parser.add_argument('--training_device', type=str, default="cpu")
 # Evaluation
 parser.add_argument('--evaluation_interval', type=int, default=20)
 parser.add_argument('--evaluation_episodes', type=int, default=200)
@@ -87,7 +70,7 @@ config = {
     "minibatch_size": args.minibatch_size, # size of minibatches used in each epoch
     "lr": args.lr,
     "max_grad_norm": args.max_grad_norm,
-    "training_device": args.vmas_device,
+    "training_device": args.training_device,
     # Evaluation
     "evaluation_interval": args.evaluation_interval,
     "evaluation_episodes": args.evaluation_episodes, # number of episodes to use during evaluation
@@ -110,5 +93,4 @@ env_config = {
     "n_agents": 2,
 }
 
-torch.manual_seed(args.seed)
-trainMAPPO_IPPO(args.seed, config, model_config, env_config, log=args.log)
+fig = PlotUtils.plot_function_arrows(SAVE_PATH, args.seed, config,model_config,env_config, config["vmas_device"])
