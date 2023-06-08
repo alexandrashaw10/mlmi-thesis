@@ -20,6 +20,7 @@ from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training
+from scenarios.simplified_het_mass import SimplifiedHetMass
 import os
 from os import path
 
@@ -31,9 +32,12 @@ def rendering_callback(env, td):
 
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
-    # if "scenario_name" == "simplified_het_mass": ... else env_config["scenario_name"]
+    if "scenario_name" == "simplified_het_mass": 
+        scen_name = SimplifiedHetMass
+    else:
+        scen_name = env_config["scenario_name"]
     env = VmasEnv(
-        scenario=env_config["scenario_name"],
+        scenario=scen_name,
         num_envs=config["vmas_envs"],
         continuous_actions=True,
         max_steps=config["max_steps"],
@@ -43,7 +47,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         **env_config,
     )
     env_test = VmasEnv(
-        scenario=env_config["scenario_name"],
+        scenario=scen_name,
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
         max_steps=config["max_steps"],
