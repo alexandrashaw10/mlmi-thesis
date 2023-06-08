@@ -117,7 +117,7 @@ class SimplifiedHetMass(BaseScenario):
         # so that its pos_curr_agent, vel_curr_agent, pos0, vel0, ...
         agent_obs = torch.cat(
             [agent.state.pos, agent.state.vel],
-            dim=-1.
+            dim=-1,
         )
 
         other_agents = Tensor([torch.cat([a.state.pos, a.state.vel], dim=-1) for a in self.world.agents if a is not agent])
