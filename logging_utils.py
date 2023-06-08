@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple, Set, Callable
 from typing import Union
 from torch import nn, Tensor
-from vmas_beta.vmas import VmasEnv,make_env
+from vmas_beta.vmas import VmasEnv
 from vmas.simulator.environment import Environment
 
 from tensordict import TensorDictBase
