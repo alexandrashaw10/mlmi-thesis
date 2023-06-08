@@ -261,26 +261,26 @@ class TrainingUtils:
                         self.temp_model_i.load_state_dict(self.model_state_dict)
                         self.temp_model_j.load_state_dict(self.model_state_dict)
                         try:
-                            model = self.model.gnn
-                            temp_model_i = self.temp_model_i.gnn
-                            temp_model_j = self.temp_model_j.gnn
+                            mdl = self.model.gnn
+                            tmp_model_i = self.temp_model_i.gnn
+                            tmp_model_j = self.temp_model_j.gnn
                         except AttributeError:
-                            model = self.model
-                            temp_model_i = self.temp_model_i
-                            temp_model_j = self.temp_model_j
-                        for temp_layer_i, temp_layer_j, layer in zip(
-                            temp_model_i.children(),
-                            temp_model_j.children(),
-                            model.children(),
+                            mdl = self.model
+                            tmp_model_i = self.temp_model_i
+                            tmp_model_j = self.temp_model_j
+                        for tmp_layer_i, tmp_layer_j, layer in zip(
+                            tmp_model_i.children(),
+                            tmp_model_j.children(),
+                            mdl.children(),
                         ):
                             assert isinstance(layer, nn.ModuleList)
                             if len(list(layer.children())) > 1:
                                 assert len(list(layer.children())) == self.n_agents
                                 self.load_agent_x_in_pos_y(
-                                    temp_layer_i, layer, x=i, y=agent_index
+                                    tmp_layer_i, layer, x=i, y=agent_index
                                 )
                                 self.load_agent_x_in_pos_y(
-                                    temp_layer_j, layer, x=j, y=agent_index
+                                    tmp_layer_j, layer, x=j, y=agent_index
                                 )
 
                         for obs_index, obs in enumerate(self.all_obs):
@@ -1021,7 +1021,7 @@ class PlotUtils:
             # artifact = run.use_artifact('alexshaw-mlmi-thesis/torchrl_het_mass/model-het_mass_MAPPO_31dcecef_23_06_01-16_13_23:v0/het_mass_MAPPO_31dcecef_23_06_01-16_13_23_model.pth', type='model')
             # artifact_dir = artifact.download()
 
-            policy_module.load_state_dict(torch.load(SAVE_DIR)) # use SAVE_PATH for local
+            policy_module.load_state_dict(torch.load(SAVE_PATH)) # use SAVE_PATH for local
             policy_module.to(device) # sends it to the GPU if used
             policy_module.eval()
 

@@ -18,7 +18,7 @@ class SimplifiedHetMass(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.green_mass = kwargs.get("green_mass", 4)
         self.blue_mass = kwargs.get("blue_mass", 2)
-        self.mass_noise = kwargs.get("mass_noise", 0) # why would I want mass noise - keeping for now but want to try with and without, right now setting to 0
+        self.mass_noise = kwargs.get("mass_noise", 0.5) # why would I want mass noise - keeping for now but want to try with and without, right now setting to 0
         # was originally 1
         self.plot_grid = True
 
