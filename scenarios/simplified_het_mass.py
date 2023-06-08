@@ -13,7 +13,7 @@ from vmas.simulator.core import Agent, World
 from vmas.simulator.scenario import BaseScenario
 from vmas.simulator.utils import Color, Y
 
-# why is every class called "Scenario"
+# every class called "Scenario" to make it easy to load
 class SimplifiedHetMass(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.green_mass = kwargs.get("green_mass", 4)
@@ -115,11 +115,17 @@ class SimplifiedHetMass(BaseScenario):
         # )
         # pass in the position and velocity of all of the other agents as well
         # so that its pos_curr_agent, vel_curr_agent, pos0, vel0, ...
-        other_agents = [[a.state.pos, a.state.vel] for a in self.world.agents if a is not agent]
+        agent_obs = torch.cat(
+            [agent.state.pos, agent.state.vel],
+            dim=-1.
+        )
 
-        other_agents = torch.flatten(other_agents, start_dim=-1)
+        other_agents = Tensor([torch.cat([a.state.pos, a.state.vel], dim=-1) for a in self.world.agents if a is not agent])
+        other_agents = torch.flatten(other_agents, start_dim=0,end_dim=1)
 
-        return torch.cat([agent.state.pos, agent.state.vel, other_agents], dim=-1)
+        return torch.cat(agent_obs, other_agents, dim=-1)
+
+        #return torch.cat([agent.state.pos, agent.state.vel, other_agents], dim=-1)
 
     def info(self, agent: Agent) -> Dict[str, Tensor]:
         return {
