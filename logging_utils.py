@@ -18,7 +18,6 @@ from tensordict import TensorDictBase
 from tensordict import TensorDict
 from tensordict.nn import TensorDictModule
 from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
-from vmas_beta.vmas import VmasEnv
 from tensordict.nn.distributions import NormalParamExtractor
 from tensordict.nn import TensorDictModule
 import matplotlib.pyplot as plt

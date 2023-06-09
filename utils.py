@@ -34,6 +34,7 @@ from rllib_differentiable_comms.multi_action_dist import (
 from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
 
 from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
+from scenarios.simplified_het_mass import SimplifiedHetMass
 from vmas_beta.vmas import VmasEnv
 from tensordict.nn.distributions import NormalParamExtractor
 from tensordict.nn import TensorDictModule
@@ -975,9 +976,14 @@ class PlotUtils:
 
             grid_inputs = torch.stack([X, Y], dim=-1)
 
+            if env_config["scenario_name"] == "simplified_het_mass": 
+                scen = SimplifiedHetMass()
+            else:
+                scen = env_config["scenario_name"]
+
             # create a VMAS env just so that we have the observation size and action size
             env = VmasEnv(
-                scenario=env_config["scenario_name"],
+                scenario=scen,
                 num_envs=config["vmas_envs"], # maybe need to use this to set the batch dimension to match the eval locations
                 continuous_actions=True,
                 max_steps=config["max_steps"],

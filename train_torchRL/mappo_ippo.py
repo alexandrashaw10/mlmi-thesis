@@ -303,8 +303,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         # artifact.add_file(SAVE_PATH)
         # logger.experiment.log_artifact(artifact)
 
-        plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
-        wandb.log({"plot": wandb.Image(plt)})
+        # plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
+        # wandb.log({"plot": wandb.Image(plt)})
 
     wandb.finish()
 
