@@ -6,7 +6,8 @@ from utils import PlotUtils
 
 SAVE_PATH = os.path.join('saved_models', 'het_mass_MAPPO_1b6e296e_23_05_31-11_47_58_model.pth')
 
-'''Need to run this with the same parameters as the training run. Can see these on the wandb dashboard'''
+'''Need to run this with the same parameters as the training run. Can see these on the wandb dashboard
+along with the run path to load from '''
 parser = argparse.ArgumentParser(description = 'Plotting Policy')
 
 # RL

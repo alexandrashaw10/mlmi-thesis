@@ -1054,8 +1054,10 @@ class PlotUtils:
 
             locs, scales = policy_module(batched_inputs)  # dist params x batch_dim x n_agents x n_agent-outputs
 
-            locs = locs.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *locs.shape[1:])
-            scales = scales.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *scales.shape[1:])
+            locs = locs.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *locs.shape[1:]).cpu()
+            scales = scales.reshape(NUM_EVAL_LOCS, NUM_EVAL_LOCS, *scales.shape[1:]).cpu()
+            Y=Y.cpu()
+            X=X.cpu()
 
             fig, ax = plt.subplots()
             ax.quiver(X, Y, locs[...,0,0], locs[...,0,1], color='g')  # plot arrows
@@ -1072,3 +1074,11 @@ class PlotUtils:
 
             return fig
         # wandb.log({"policy": fig})
+
+    @staticmethod
+    def plot_lip_vs_heterogeneity():
+        return 
+
+    @staticmethod
+    def plot_lip_vs_performance():
+        return 

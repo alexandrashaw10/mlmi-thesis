@@ -22,7 +22,7 @@
 #! Note that the job submission script will enforce no more than 32 cpus per GPU.
 #SBATCH --gres=gpu:1
 #! How much wallclock time will be required?
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #! What types of email messages do you wish to receive?
 #SBATCH --mail-type=NONE
 #! Uncomment this to prevent the job from being requeued (e.g. if
@@ -36,8 +36,9 @@
 
 #! ######################################################################################
 #! ######################################################################################
-#! set configurations in run.py, e.g. options="--train_json=train_fbank.json --lr=0.01":
-options=" --shared_parameters=True --MLP_activation=GroupSort --constrain_lipschitz=False"
+#! set configurations in run.py, e.g. options="--shared_parameters=True --MLP_activation=GroupSort --constrain_lipschitz=True"  --seed 0 1 42 267 383:
+options="--constrain_lipschitz=True --MLP_activation=GroupSort --seed 42 357 --n_iters=800 --lip_sigma 1000.0"
+#! seeds run 1
 
 #! ######################################################################################
 #! ######################################################################################
@@ -60,12 +61,13 @@ module purge                               # Removes all modules still loaded
 module load rhel8/default-amp              # REQUIRED - loads the basic environment
 
 source /home/${USER}/.bashrc
-conda activate mlmi-thesis
+source /rds/project/rds-xyBFuSj0hm0/MLMI2.M2022/miniconda3/bin/activate
 #! source /rds/project/rds-xyBFuSj0hm0/MLMI2.M2022/miniconda3/bin/activate
 #! Insert additional module load commands after this line if needed:
+conda activate mlmi-thesis
 
 #! Full path to application executable: 
-application="python -u run_het_mass.py"
+application="python3 -u run_het_mass.py"
 
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
