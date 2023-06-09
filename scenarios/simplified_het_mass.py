@@ -5,6 +5,7 @@ import math
 from typing import Dict
 
 import numpy as np
+from itertools import chain
 import torch
 from torch import Tensor
 
@@ -111,15 +112,13 @@ class SimplifiedHetMass(BaseScenario):
     def observation(self, agent: Agent):
         # pass in the position and velocity of all of the other agents as well
         # so that its pos_curr_agent, vel_curr_agent, pos0, vel0, ...
-        agent_obs = torch.cat(
-            [agent.state.pos, agent.state.vel],
-            dim=-1,
-        )
-        other_agents = torch.cat([
-            torch.cat([a.state.pos, a.state.vel], dim=-1) 
-            for a in self.world.agents if a is not agent])
-        final = torch.cat([agent_obs, other_agents], dim=-1)
-        return final
+        positions = [agent.state.pos]
+        velocities = [agent.state.vel]
+        positions.extend([a.state.pos for a in self.world.agents if a is not agent])
+        velocities.extend([a.state.vel for a in self.world.agents if a is not agent])
+
+        agents = list(chain.from_iterable(zip(positions, velocities)))
+        return torch.cat(agents, dim=-1)
 
     def info(self, agent: Agent) -> Dict[str, Tensor]:
         return {
