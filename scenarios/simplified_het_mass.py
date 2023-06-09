@@ -109,10 +109,6 @@ class SimplifiedHetMass(BaseScenario):
         return self.max_speed + self.energy_expenditure
 
     def observation(self, agent: Agent):
-        # return torch.cat(
-        #     [agent.state.pos, agent.state.vel],
-        #     dim=-1,
-        # )
         # pass in the position and velocity of all of the other agents as well
         # so that its pos_curr_agent, vel_curr_agent, pos0, vel0, ...
         agent_obs = torch.cat(
@@ -120,10 +116,12 @@ class SimplifiedHetMass(BaseScenario):
             dim=-1,
         )
 
-        other_agents = Tensor([torch.cat([a.state.pos, a.state.vel], dim=-1) for a in self.world.agents if a is not agent])
-        other_agents = torch.flatten(other_agents, start_dim=0,end_dim=1)
+        other_agents = torch.cat([
+            torch.cat([a.state.pos, a.state.vel], dim=-1) 
+            for a in self.world.agents if a is not agent])
+        final = torch.cat([agent_obs, other_agents], dim=-1)
 
-        return torch.cat(agent_obs, other_agents, dim=-1)
+        return final
 
         #return torch.cat([agent.state.pos, agent.state.vel, other_agents], dim=-1)
 
@@ -132,7 +130,6 @@ class SimplifiedHetMass(BaseScenario):
             "max_speed": self.max_speed,
             "energy_expenditure": self.energy_expenditure,
         }
-
 
 if __name__ == "__main__":
     render_interactively(__file__, control_two_agents=True)
