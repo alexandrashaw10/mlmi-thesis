@@ -33,11 +33,11 @@ def rendering_callback(env, td):
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
     if env_config["scenario_name"] == "simplified_het_mass": 
-        scen_name = SimplifiedHetMass()
+        scen = SimplifiedHetMass()
     else:
-        scen_name = env_config["scenario_name"]
+        scen = env_config["scenario_name"]
     env = VmasEnv(
-        scenario=scen_name,
+        scenario=scen,
         num_envs=config["vmas_envs"],
         continuous_actions=True,
         max_steps=config["max_steps"],
@@ -46,8 +46,12 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         # Scenario kwargs
         **env_config,
     )
+    if env_config["scenario_name"] == "simplified_het_mass": 
+        scen = SimplifiedHetMass()
+    else:
+        scen = env_config["scenario_name"]
     env_test = VmasEnv(
-        scenario=scen_name,
+        scenario=scen,
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
         max_steps=config["max_steps"],

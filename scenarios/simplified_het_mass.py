@@ -115,21 +115,18 @@ class SimplifiedHetMass(BaseScenario):
             [agent.state.pos, agent.state.vel],
             dim=-1,
         )
-
         other_agents = torch.cat([
             torch.cat([a.state.pos, a.state.vel], dim=-1) 
             for a in self.world.agents if a is not agent])
         final = torch.cat([agent_obs, other_agents], dim=-1)
-
         return final
-
-        #return torch.cat([agent.state.pos, agent.state.vel, other_agents], dim=-1)
 
     def info(self, agent: Agent) -> Dict[str, Tensor]:
         return {
             "max_speed": self.max_speed,
             "energy_expenditure": self.energy_expenditure,
         }
+
 
 if __name__ == "__main__":
     render_interactively(__file__, control_two_agents=True)
