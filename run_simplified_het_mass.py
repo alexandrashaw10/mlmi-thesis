@@ -37,8 +37,8 @@ parser.add_argument('--entropy_eps', type=int, default=0)
 parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
-parser.add_argument('--max_steps', type=int, default=100)
-parser.add_argument('--n_iters', type=int, default=100)
+parser.add_argument('--max_steps', type=int, default=200)
+parser.add_argument('--n_iters', type=int, default=500)
 parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
 parser.add_argument('--num_epochs', type=int, default=25)
@@ -59,6 +59,7 @@ parser.add_argument('--lip_sigma', type=float, nargs='*', default=1.0)
 parser.add_argument('--groupsort_n_groups', type=int, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
+parser.add_argument('--constrain_critic', type=bool, default=False)
 
 # run parameters
 # will run each constant for the number of seeds that are provided
@@ -122,19 +123,18 @@ model_config = {
     "mlp_hidden_params": 256, #args.mlp_hidden_params,
     "groupsort_n_groups": 8, #args.groupsort_n_groups,
     "mlp_depth": 3, #args.mlp_depth,
+    "constrain_critic": False,
 }
 
 env_config = {
     # Scenario
-    "scenario_name": "het_mass",
+    "scenario_name": "simplified_het_mass",
     "n_agents": 2,
 }
 
 print(config)
 print(model_config)
 print(env_config)
-
-
 
 for seed in args.seed:
     torch.manual_seed(seed)
