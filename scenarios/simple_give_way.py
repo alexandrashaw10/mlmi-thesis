@@ -4,6 +4,7 @@
 import math
 
 import torch
+from itertools import chain
 
 from vmas import render_interactively
 from vmas.simulator.core import Agent, World, Landmark, Sphere, Line, Box
