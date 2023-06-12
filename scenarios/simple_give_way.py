@@ -12,7 +12,7 @@ from vmas.simulator.utils import Color, TorchUtils
 from vmas.simulator.controllers.velocity_controller import VelocityController
 
 
-class Scenario(BaseScenario):
+class SimpleGiveWay(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.v_range = kwargs.get("v_range", 0.5)
         self.a_range = kwargs.get("a_range", 1)

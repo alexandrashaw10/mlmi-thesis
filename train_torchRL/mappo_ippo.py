@@ -22,6 +22,7 @@ from torchrl.record.loggers.wandb import WandbLogger
 from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training
 from scenarios.simplified_het_mass import SimplifiedHetMass
+from scenarios.simple_give_way import SimpleGiveWay
 import os
 from os import path
 
@@ -35,6 +36,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
     if env_config["scenario_name"] == "simplified_het_mass": 
         scen = SimplifiedHetMass()
+    elif env_config["scenario_name"] == "simple_give_way":
+        scen = SimpleGiveWay()
     else:
         scen = env_config["scenario_name"]
     env = VmasEnv(
@@ -49,6 +52,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     )
     if env_config["scenario_name"] == "simplified_het_mass": 
         scen = SimplifiedHetMass()
+    elif env_config["scenario_name"] == "simple_give_way":
+        scen = SimpleGiveWay()
     else:
         scen = env_config["scenario_name"]
     env_test = VmasEnv(
