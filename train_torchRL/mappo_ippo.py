@@ -104,36 +104,21 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     )
 
     # Critic
-    if model_config["constrain_critic"]:
-        module = LipNormedMultiAgentMLP(
-            n_agent_inputs=env.observation_spec["observation"].shape[-1],
-            n_agent_outputs=1, # why is the agent output only 1 ? for the critic? should be centralized critic for MAPPO
-            # but why does this mean that the n_agent_outputs = 1 ?
-            n_agents=env.n_agents,
-            centralised=model_config["centralised_critic"],
-            share_params=model_config["shared_parameters"],
-            device=config["training_device"],
-            depth=model_config["mlp_depth"], # changed to 3
-            num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
-            activation_class=model_config["MLP_activation"],
-            lip_constrained=model_config["constrain_lipschitz"],
-            sigma=model_config["lip_sigma"],
-            groupsort_n_groups=model_config["groupsort_n_groups"],
-        )
-    else:
-        module = MultiAgentMLP(
-            n_agent_inputs=env.observation_spec["observation"].shape[-1],
-            n_agent_outputs=1, # why is the agent output only 1 ? for the critic? should be centralized critic for MAPPO
-            # but why does this mean that the n_agent_outputs = 1 ?
-            n_agents=env.n_agents,
-            centralised=model_config["centralised_critic"],
-            share_params=model_config["shared_parameters"],
-            device=config["training_device"],
-            depth=model_config["mlp_depth"], # changed to 3
-            num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
-            activation_class=model_config["MLP_activation"],
-            groupsort_n_groups=model_config["groupsort_n_groups"],
-        )
+    module = LipNormedMultiAgentMLP(
+        n_agent_inputs=env.observation_spec["observation"].shape[-1],
+        n_agent_outputs=1, # why is the agent output only 1 ? for the critic? should be centralized critic for MAPPO
+        # but why does this mean that the n_agent_outputs = 1 ?
+        n_agents=env.n_agents,
+        centralised=model_config["centralised_critic"],
+        share_params=model_config["shared_parameters"],
+        device=config["training_device"],
+        depth=model_config["mlp_depth"], # changed to 3
+        num_cells=model_config["mlp_hidden_params"], # changed to 64 for het_mass
+        activation_class=model_config["MLP_activation"],
+        lip_constrained=model_config["constrain_critic"],
+        sigma=model_config["lip_sigma"],
+        groupsort_n_groups=model_config["groupsort_n_groups"],
+    )
     value_module = ValueOperator(
         module=module, # didn't need a TensorDictModule here, probably because we don't have out_keys ?
         in_keys=["observation"],

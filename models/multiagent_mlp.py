@@ -18,6 +18,7 @@ class MultiAgentMLP(nn.Module):
         depth,
         num_cells,
         activation_class, # try with GroupSort and with tanh
+        groupsort_n_groups,
         lip_constrained=False,
         sigma=1.0,
     ):
@@ -40,6 +41,7 @@ class MultiAgentMLP(nn.Module):
                     depth=depth,
                     num_cells=num_cells,
                     activation_class=activation_class,
+                    groupsort_n_groups=groupsort_n_groups,
                     device=device,
                     lip_constrained=lip_constrained,
                     sigma=sigma,
