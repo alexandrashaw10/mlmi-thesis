@@ -16,7 +16,7 @@ from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from vmas_beta.vmas import VmasEnv # torchrl.envs.libs.vmas
 from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
-from torchrl.objectives import ClipPPOLoss, ValueEstimators
+from torchrl.objectives import KLPENPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from monotonenorm import GroupSort
@@ -186,13 +186,18 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     )
 
     # Loss
-    loss_module = ClipPPOLoss( # clipped importance weighted loss
+    # loss_module = ClipPPOLoss( # clipped importance weighted loss
+    #     actor=policy,
+    #     critic=value_module,
+    #     advantage_key="advantage", # dict keyword in input where advantage is written
+    #     clip_epsilon=config["clip_epsilon"], # weight clipping threshold in clipped PPO loss eq
+    #     entropy_coef=config["entropy_eps"], # critic loss multiplier w total loss
+    #     normalize_advantage=False, # don't normalize the advantage function
+    # )
+    loss_module = KLPENPPOLoss( # the RLLib version uses both the PPO clip and the PPO KL divergence penalty it seems like ? which is very weird
         actor=policy,
         critic=value_module,
-        advantage_key="advantage", # dict keyword in input where advantage is written
-        clip_epsilon=config["clip_epsilon"], # weight clipping threshold in clipped PPO loss eq
-        entropy_coef=config["entropy_eps"], # critic loss multiplier w total loss
-        normalize_advantage=False, # don't normalize the advantage function
+        entropy_coef=config["entropy_eps"],
     )
 
 	# set up the parameters for the value function
@@ -219,7 +224,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         )
         wandb.run.log_code(".")
 
-        # save_best_model = SaveBestModel(exp_name)
+        save_best_model = SaveBestModel(exp_name)
 
 
 	# where does the actual sampling happen to fill the replay buffer ?
@@ -334,16 +339,16 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         sampling_start = time.time()
 
 
-    if log:
-        SAVE_DIR = './saved_models'
-        # if not path.isdir(SAVE_DIR):
-        #     os.makedirs(SAVE_DIR)
+    # if log:
+    #     SAVE_DIR = './saved_models'
+    #     if not path.isdir(SAVE_DIR):
+    #         os.makedirs(SAVE_DIR)
 
-        # POLICY_SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
-        # CRITIC_SAVE_PATH = path.join(SAVE_DIR, exp_name + '_critic.pth')
+    #     POLICY_SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
+    #     CRITIC_SAVE_PATH = path.join(SAVE_DIR, exp_name + '_critic.pth')
         
-        # torch.save(policy_module.state_dict(), POLICY_SAVE_PATH)
-        # torch.save(critic_module.state_dict(), CRITIC_SAVE_PATH)
+    #     torch.save(policy_module.state_dict(), POLICY_SAVE_PATH)
+    #     torch.save(critic_module.state_dict(), CRITIC_SAVE_PATH)
 
         # artifact = wandb.Artifact(name=f"model-{exp_name}", type='model')
         # artifact.add_file(SAVE_PATH)
@@ -351,12 +356,6 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
         # plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
         # wandb.log({"plot": wandb.Image(plt)})
-        SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
-            torch.save({
-                'policy_model_state_dict': policy_module.state_dict(),
-                'optimizer_state_dict': optim.state_dict(),
-                'critic_state_dict': value_module.state_dict(),
-                }, SAVE_PATH)
 
     wandb.finish()
 

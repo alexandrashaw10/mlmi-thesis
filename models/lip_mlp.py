@@ -15,7 +15,7 @@ class LipNormedMLP(nn.Module):
                  depth: int, num_cells: int, 
                  activation_class: nn.Module, device: torch.device | str | int | None = None,
                  lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False,
-                 groupsort_n_groups: int | None = 4):
+                 groupsort_n_groups: int | None = 4, norm_type: str = '1'):
         super().__init__()
 
         if lip_constrained:
@@ -29,24 +29,25 @@ class LipNormedMLP(nn.Module):
             max_norm - the lipschitz constraint on the network
             '''
             #max_norm = sigma ** (1 / depth) # the norm of each layer
+            if norm_type == '1':
+                class LipNormalize(nn.Module):
+                    def forward(self, W):
+                        norms = W.abs().sum(axis=0) # compute 1-norm of W
+                        
+                        if not always_norm:
+                            # 1 / max_norm is the lambda ^ (-1/depth) term in the paper
+                            norms = torch.max(torch.ones_like(norms), norms / max_norm)
+                        else:
+                            # otherwise just take the norm divided by the max_norm
+                            norms = norms / max_norm
 
-            class LipNormalize(nn.Module):
-                def forward(self, W):
-                    norms = W.abs().sum(axis=0) # compute 1-norm of W
-                    
-                    if not always_norm:
-                        # 1 / max_norm is the lambda ^ (-1/depth) term in the paper
-                        norms = torch.max(torch.ones_like(norms), norms / max_norm)
-                    else:
-                        # otherwise just take the norm divided by the max_norm
-                        norms = norms / max_norm
+                        norm_W = W / torch.max(norms, torch.ones_like(norms)*1e-12) # second term protects from divide by zero errors, changed from 1e-10 to 1e-12
 
-                    norm_W = W / torch.max(norms, torch.ones_like(norms)*1e-10) # second term protects from divide by zero errors
-
-                    return norm_W
-            
-            register_parametrization(layer, "weight", LipNormalize())
-
+                        return norm_W
+                
+                register_parametrization(layer, "weight", LipNormalize())
+            elif norm_type == '2':
+                layer = spectral_norm(layer, name="weight", n_power_iterations=1)
             return layer
 
             # return direct_norm(

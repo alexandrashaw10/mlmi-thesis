@@ -4,6 +4,7 @@ import time
 
 import torch
 from torch import nn
+from torch.nn.utils.parametrizations import spectral_norm
 
 #from torchrl.modules import MLP
 from models.lip_mlp import LipNormedMLP
@@ -24,6 +25,7 @@ class LipNormedMultiAgentMLP(nn.Module):
         lip_constrained=False,
         sigma=1.0,
         groupsort_n_groups=8,
+        norm_type='1',
     ):
         super().__init__()
         
@@ -49,6 +51,7 @@ class LipNormedMultiAgentMLP(nn.Module):
                     sigma=sigma,
                     always_norm = False, # need to add this to the config
                     groupsort_n_groups=groupsort_n_groups,
+                    norm_type=norm_type
                 )
                 for _ in range(self.n_agents if not self.share_params else 1)
             ]

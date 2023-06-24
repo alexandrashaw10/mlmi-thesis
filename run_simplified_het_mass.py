@@ -43,7 +43,7 @@ parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
 parser.add_argument('--num_epochs', type=int, default=25)
 parser.add_argument('--minibatch_size', type=int, default=4096)
-parser.add_argument('--lr', type=float, default=5e-5)
+parser.add_argument('--lr', type=float, default=5e-5) 
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
 parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
@@ -52,7 +52,7 @@ parser.add_argument('--evaluation_episodes', type=int, default=200)
 
 # Model
 parser.add_argument('--shared_parameters', type=bool, default=False) # True = homogeneous, False = Heterogeneous
-parser.add_argument('--centralised_critic', type=bool, default=True) # MAPPO if True, IPPO if False
+parser.add_argument('--centralised_critic', type=bool, default=False) # MAPPO if True, IPPO if False, use False if using full information
 parser.add_argument('--MLP_activation') # TanH may not be suitable for this model, as we might need GroupSort, doesn't accept the type of nn.Module
 parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
 parser.add_argument('--lip_sigma', type=float, nargs='*', default=1.0)
@@ -60,6 +60,7 @@ parser.add_argument('--groupsort_n_groups', type=int, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
+parser.add_argument('--norm_type', type=str, default='1')
 
 # run parameters
 # will run each constant for the number of seeds that are provided
@@ -124,6 +125,7 @@ model_config = {
     "groupsort_n_groups": 8, #args.groupsort_n_groups,
     "mlp_depth": 3, #args.mlp_depth,
     "constrain_critic": False,
+    "norm_type": args.norm_type,
 }
 
 env_config = {

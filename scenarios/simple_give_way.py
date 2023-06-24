@@ -20,7 +20,7 @@ class SimpleGiveWay(BaseScenario):
         self.obs_noise = kwargs.get("obs_noise", 0)
         self.box_agents = kwargs.get("box_agents", False)
         self.linear_friction = kwargs.get("linear_friction", 0.1)
-        self.mirror_passage = kwargs.get("mirror_passage", False)
+        self.mirror_passage = kwargs.get("mirror_passage", True) # make it easier for the homogeneous agents
         self.done_on_completion = kwargs.get("done_on_completion", False)
 
         # Reward params

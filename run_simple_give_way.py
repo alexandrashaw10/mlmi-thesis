@@ -37,28 +37,29 @@ parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=300)
-parser.add_argument('--n_iters', type=int, default=500)
+parser.add_argument('--n_iters', type=int, default=400)
 parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
-parser.add_argument('--num_epochs', type=int, default=25)
+parser.add_argument('--num_epochs', type=int, default=40)
 parser.add_argument('--minibatch_size', type=int, default=4096)
 parser.add_argument('--lr', type=float, default=5e-5)
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
 parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
 parser.add_argument('--evaluation_interval', type=int, default=20)
-parser.add_argument('--evaluation_episodes', type=int, default=600)
+parser.add_argument('--evaluation_episodes', type=int, default=300)
 
 # Model
 parser.add_argument('--shared_parameters', type=bool, default=False) # True = homogeneous, False = Heterogeneous
-parser.add_argument('--centralised_critic', type=bool, default=True) # MAPPO if True, IPPO if False
+parser.add_argument('--centralised_critic', type=bool, default=False) # MAPPO if True, IPPO if False, use False if using full information
 parser.add_argument('--MLP_activation') # TanH may not be suitable for this model, as we might need GroupSort, doesn't accept the type of nn.Module
 parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
-parser.add_argument('--lip_sigma', type=float, nargs='*', default=1.0)
+parser.add_argument('--lip_sigma', type=float, nargs='*', default=float('inf'))
 parser.add_argument('--groupsort_n_groups', type=int, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
+parser.add_argument('--norm_type', type=str, default='1')
 
 # run parameters
 # will run each constant for the number of seeds that are provided
@@ -83,9 +84,6 @@ activation = nn.Tanh
 if args.MLP_activation == "GroupSort":
     activation = GroupSort
 
-frames_per_batch = 60_000
-max_steps = 100
-
 config = {
     # RL
     "gamma": 0.9, #args.gamma,
@@ -95,15 +93,15 @@ config = {
     "entropy_eps": 0,#args.entropy_eps,
     "clip_epsilon": 0.2,#args.clip_epsilon,
     # Sampling
-    "frames_per_batch": 60_000,#args.frames_per_batch,
+    "frames_per_batch": args.frames_per_batch, #args.frames_per_batch,
     "max_steps": args.max_steps,
-    "vmas_envs": frames_per_batch // max_steps, # args.frames_per_batch // args.max_steps,
+    "vmas_envs": args.frames_per_batch // args.max_steps, # args.frames_per_batch // args.max_steps,
     "n_iters": args.n_iters, # args.n_iters,
-    "total_frames": frames_per_batch * args.n_iters, #args.frames_per_batch * args.n_iters,
-    "memory_size": frames_per_batch, # args.frames_per_batch,
+    "total_frames": args.frames_per_batch * args.n_iters, #args.frames_per_batch * args.n_iters,
+    "memory_size": args.frames_per_batch, # args.frames_per_batch,
     "vmas_device": device, #args.vmas_device,
     # Training
-    "num_epochs": 25, #args.num_epochs, # optimization steps per batch of data collected
+    "num_epochs": args.num_epochs, #args.num_epochs, # optimization steps per batch of data collected
     "minibatch_size": 4096, #args.minibatch_size, # size of minibatches used in each epoch
     "lr": 5e-5, #args.lr,
     "max_grad_norm": 40.0,# args.max_grad_norm,
@@ -115,7 +113,7 @@ config = {
 
 model_config = {
     "shared_parameters": args.shared_parameters, # True = homogeneous, False = Heterogeneous
-    "centralised_critic": True, # args.centralised_critic, # MAPPO if True, IPPO if False
+    "centralised_critic": args.centralised_critic, # args.centralised_critic, # MAPPO if True, IPPO if False (if full information use False)
     "MLP_activation": activation, # TanH may not be suitable for this model, as we might need GroupSort
     "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
     "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
@@ -123,6 +121,7 @@ model_config = {
     "groupsort_n_groups": 8, #args.groupsort_n_groups,
     "mlp_depth": 3, #args.mlp_depth,
     "constrain_critic": False,
+    "norm_type": args.norm_type,
 }
 
 env_config = {
