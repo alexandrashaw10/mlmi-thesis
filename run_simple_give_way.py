@@ -32,7 +32,7 @@ parser.add_argument('--gamma', type=float, default=0.9)
 parser.add_argument('--seed', nargs='+', type=int, default=0) # for list of seeds
 # PPO
 parser.add_argument('--lmbda', type=float, default=0.9)
-parser.add_argument('--entropy_eps', type=int, default=0)
+parser.add_argument('--entropy_eps', type=float, default=0.0)
 parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
@@ -47,7 +47,7 @@ parser.add_argument('--max_grad_norm', type=float, default=40.0)
 parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
 parser.add_argument('--evaluation_interval', type=int, default=20)
-parser.add_argument('--evaluation_episodes', type=int, default=300)
+parser.add_argument('--evaluation_episodes', type=int, default=200)
 
 # Model
 parser.add_argument('--shared_parameters', type=bool, default=False) # True = homogeneous, False = Heterogeneous
@@ -86,12 +86,12 @@ if args.MLP_activation == "GroupSort":
 
 config = {
     # RL
-    "gamma": 0.9, #args.gamma,
-    "seed": 0, #args.seed,
+    "gamma": args.gamma, #args.gamma,
+    "seed": args.seed, #args.seed,
     # PPO
-    "lmbda": 0.9, # args.lmbda,
-    "entropy_eps": 0,#args.entropy_eps,
-    "clip_epsilon": 0.2,#args.clip_epsilon,
+    "lmbda": args.lmbda, # args.lmbda,
+    "entropy_eps": args.entropy_eps,#args.entropy_eps,
+    "clip_epsilon": args.clip_epsilon,#args.clip_epsilon,
     # Sampling
     "frames_per_batch": args.frames_per_batch, #args.frames_per_batch,
     "max_steps": args.max_steps,
@@ -102,13 +102,13 @@ config = {
     "vmas_device": device, #args.vmas_device,
     # Training
     "num_epochs": args.num_epochs, #args.num_epochs, # optimization steps per batch of data collected
-    "minibatch_size": 4096, #args.minibatch_size, # size of minibatches used in each epoch
-    "lr": 5e-5, #args.lr,
-    "max_grad_norm": 40.0,# args.max_grad_norm,
+    "minibatch_size": args.minibatch_size, #args.minibatch_size, # size of minibatches used in each epoch
+    "lr": args.lr, #args.lr,
+    "max_grad_norm": args.max_grad_norm,# args.max_grad_norm,
     "training_device": device, #args.vmas_device,
     # Evaluation
-    "evaluation_interval": 20, # args.evaluation_interval,
-    "evaluation_episodes": 200, # args.evaluation_episodes, # number of episodes to use during evaluation
+    "evaluation_interval": args.evaluation_interval, # args.evaluation_interval,
+    "evaluation_episodes": args.evaluation_episodes, # args.evaluation_episodes, # number of episodes to use during evaluation
 }
 
 model_config = {
@@ -117,9 +117,9 @@ model_config = {
     "MLP_activation": activation, # TanH may not be suitable for this model, as we might need GroupSort
     "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
     "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
-    "mlp_hidden_params": 256, #args.mlp_hidden_params,
-    "groupsort_n_groups": 8, #args.groupsort_n_groups,
-    "mlp_depth": 3, #args.mlp_depth,
+    "mlp_hidden_params": args.mlp_hidden_params,
+    "groupsort_n_groups": args.groupsort_n_groups,
+    "mlp_depth": args.mlp_depth,
     "constrain_critic": False,
     "norm_type": args.norm_type,
 }

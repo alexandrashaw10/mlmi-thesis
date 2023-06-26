@@ -15,7 +15,7 @@ from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from vmas_beta.vmas import VmasEnv # torchrl.envs.libs.vmas is the true package, but using a debug version
 from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
-from torchrl.objectives import KLPENPPOLoss, ValueEstimators
+from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
 from logging_utils import log_evaluation, log_training
@@ -23,9 +23,9 @@ from monotonenorm import GroupSort
 import argparse
 
 # train this run using MAPPO and HetMAPPO
-from train_torchRL.mappo_ippo_kl_loss import trainMAPPO_IPPO
+from train_torchRL.mappo_ippo import trainMAPPO_IPPO
 
-parser = argparse.ArgumentParser(description = 'Running Simple Give Way Test')
+parser = argparse.ArgumentParser(description = 'Running Balance')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9) 
@@ -34,7 +34,6 @@ parser.add_argument('--seed', nargs='+', type=int, default=0) # for list of seed
 parser.add_argument('--lmbda', type=float, default=0.9)
 parser.add_argument('--entropy_eps', type=float, default=0.0)
 parser.add_argument('--clip_epsilon', type=float, default=0.2)
-parser.add_argument('--kl_loss', type=bool, default=True)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=300)
@@ -94,7 +93,7 @@ config = {
     "entropy_eps": args.entropy_eps,#args.entropy_eps,
     "clip_epsilon": args.clip_epsilon,#args.clip_epsilon,
     # Sampling
-    "frames_per_batch": args.frames_per_batch,#args.frames_per_batch,
+    "frames_per_batch": args.frames_per_batch, #args.frames_per_batch,
     "max_steps": args.max_steps,
     "vmas_envs": args.frames_per_batch // args.max_steps, # args.frames_per_batch // args.max_steps,
     "n_iters": args.n_iters, # args.n_iters,
@@ -105,11 +104,11 @@ config = {
     "num_epochs": args.num_epochs, #args.num_epochs, # optimization steps per batch of data collected
     "minibatch_size": args.minibatch_size, #args.minibatch_size, # size of minibatches used in each epoch
     "lr": args.lr, #args.lr,
-    "max_grad_norm": args.max_grad_norm,
+    "max_grad_norm": args.max_grad_norm,# args.max_grad_norm,
     "training_device": device, #args.vmas_device,
     # Evaluation
-    "evaluation_interval": args.evaluation_interval,
-    "evaluation_episodes": args.evaluation_episodes, # number of episodes to use during evaluation
+    "evaluation_interval": args.evaluation_interval, # args.evaluation_interval,
+    "evaluation_episodes": args.evaluation_episodes, # args.evaluation_episodes, # number of episodes to use during evaluation
 }
 
 model_config = {
@@ -118,7 +117,7 @@ model_config = {
     "MLP_activation": activation, # TanH may not be suitable for this model, as we might need GroupSort
     "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
     "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
-    "mlp_hidden_params": args.mlp_hidden_params, #args.mlp_hidden_params,
+    "mlp_hidden_params": args.mlp_hidden_params,
     "groupsort_n_groups": args.groupsort_n_groups,
     "mlp_depth": args.mlp_depth,
     "constrain_critic": False,
@@ -127,9 +126,10 @@ model_config = {
 
 env_config = {
     # Scenario
-    "scenario_name": "simple_give_way",
+    "scenario_name": "balance",
     "n_agents": 2,
 }
+
 
 print(config)
 print(model_config)
@@ -147,5 +147,6 @@ for seed in args.seed:
 
     else:
         trainMAPPO_IPPO(seed, config, model_config, env_config, log=True)
+
 
 

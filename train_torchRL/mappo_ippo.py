@@ -50,7 +50,7 @@ class SaveBestModel:
             print(f"\nBest eval reward: {self.best_mean_reward}")
             print(f"\nSaving best model for epoch: {iteration}\n")
 
-            SAVE_PATH = path.join('saved_models', self.exp_name + '_model.pth')
+            SAVE_PATH = path.join('saved_models', self.exp_name + '_best_model.pth')
             torch.save({
                 'iter': iteration,
                 'policy_model_state_dict': policy_module.state_dict(),
@@ -115,6 +115,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             lip_constrained=model_config["constrain_lipschitz"],
             sigma=model_config["lip_sigma"],
             groupsort_n_groups=model_config["groupsort_n_groups"],
+            norm_type=model_config["norm_type"],
         ),
         NormalParamExtractor(),
     )
@@ -153,6 +154,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         lip_constrained=model_config["constrain_critic"],
         sigma=model_config["lip_sigma"],
         groupsort_n_groups=model_config["groupsort_n_groups"],
+        norm_type=model_config["norm_type"],
     )
     value_module = ValueOperator(
         module=critic_module, # didn't need a TensorDictModule here, probably because we don't have out_keys ?
@@ -219,7 +221,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         )
         wandb.run.log_code(".")
 
-        # save_best_model = SaveBestModel(exp_name)
+        save_best_model = SaveBestModel(exp_name)
 
 
 	# where does the actual sampling happen to fill the replay buffer ?
@@ -296,7 +298,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
                 total_frames,
             )
 
-            save_best_model(reward_mean, i, policy_module, value_module, optim)
+            # save_best_model(reward_mean, i, policy_module, value_module, optim)
 
         if (
             config["evaluation_episodes"] > 0
@@ -327,7 +329,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
                     (not model_config["shared_parameters"]),
                 )
 
-                #save_best_model(reward_mean, i, policy_module, value_module, optim)
+                save_best_model(reward_mean, i, policy_module, value_module, optim)
 
         if log:
             logger.experiment.log({}, commit=True)
@@ -352,11 +354,11 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         # plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
         # wandb.log({"plot": wandb.Image(plt)})
         SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
-            torch.save({
-                'policy_model_state_dict': policy_module.state_dict(),
-                'optimizer_state_dict': optim.state_dict(),
-                'critic_state_dict': value_module.state_dict(),
-                }, SAVE_PATH)
+        torch.save({
+            'policy_model_state_dict': policy_module.state_dict(),
+            'optimizer_state_dict': optim.state_dict(),
+            'critic_state_dict': value_module.state_dict(),
+            }, SAVE_PATH)
 
     wandb.finish()
 

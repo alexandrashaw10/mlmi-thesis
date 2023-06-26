@@ -6,6 +6,7 @@ from torch import nn
 
 #from torchrl.modules import MLP
 # from monotonenorm import direct_norm
+from torch.nn.utils import spectral_norm
 from torch.nn.utils.parametrize import register_parametrization
 from monotonenorm import GroupSort
 

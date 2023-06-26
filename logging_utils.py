@@ -170,7 +170,7 @@ def log_evaluation(
         commit=False,
     ),
 
-    # reward_mean = sum([td["next", "reward"].sum(0).mean() for td in rollouts]) / len(rollouts)
+    reward_mean = sum([td["next", "reward"].sum(0).mean() for td in rollouts]) / len(rollouts)
 
     #snd_mean, snd_std, snd_min, snd_max = compute_neural_diversity(rollouts, policy_module)
     # if log_diversity:
@@ -202,9 +202,7 @@ def log_evaluation(
             "eval/episode_reward_max": max(
                 [td["next", "reward"].sum(0).mean() for td in rollouts]
             ),
-            "eval/episode_reward_mean": sum(
-                [td["next", "reward"].sum(0).mean() for td in rollouts])
-            / len(rollouts),
+            "eval/episode_reward_mean": reward_mean,
             "eval/episode_len_mean": sum([td.batch_size[0] for td in rollouts])
             / len(rollouts),
             "eval/evaluation_time": evaluation_time
@@ -212,4 +210,4 @@ def log_evaluation(
         commit=False,
     )
 
-    # return reward_mean
+    return reward_mean
