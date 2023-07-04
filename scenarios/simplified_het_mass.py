@@ -20,6 +20,7 @@ class SimplifiedHetMass(BaseScenario):
         self.green_mass = kwargs.get("green_mass", 4)
         self.blue_mass = kwargs.get("blue_mass", 2)
         self.mass_noise = kwargs.get("mass_noise", 0.5) # why would I want mass noise - keeping for now but want to try with and without, right now setting to 0
+        self.obs_noise = kwargs.get("obs_noise", 0.0)
         # was originally 1
         self.plot_grid = True
 
@@ -118,6 +119,18 @@ class SimplifiedHetMass(BaseScenario):
         velocities.extend([a.state.vel for a in self.world.agents if a is not agent])
 
         agents = list(chain.from_iterable(zip(positions, velocities)))
+
+        if self.obs_noise > 0:
+            for i, obs in enumerate(agents):
+                noise = torch.zeros(
+                    *obs.shape,
+                    device=self.world.device,
+                ).uniform_(
+                    -self.obs_noise,
+                    self.obs_noise,
+                )
+                agents[i] = obs + noise
+        
         return torch.cat(agents, dim=-1)
 
     def info(self, agent: Agent) -> Dict[str, Tensor]:

@@ -130,7 +130,7 @@ model_config = {
 
 env_config = {
     # Scenario
-    "scenario_name": "simplified_het_mass",
+    "scenario_name": "simplified_het_mass_obs_noise",
     "n_agents": 2,
 }
 
