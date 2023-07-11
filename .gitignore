@@ -177,4 +177,15 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# HPC outputs
+machine.*
+logs/
+simple_het_mass_slurm_scripts/
+slurm-*
+slurm_outputs/
 
+# slurm scripts
+slurm_*
+
+# Checkpoints
+saved_models/

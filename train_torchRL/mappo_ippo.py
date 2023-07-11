@@ -23,6 +23,8 @@ from monotonenorm import GroupSort
 from logging_utils import log_evaluation, log_training, compute_neural_diversity
 from scenarios.simplified_het_mass import SimplifiedHetMass
 from scenarios.simple_give_way import SimpleGiveWay
+from scenarios.rel_give_way import RelGiveWay
+from scenarios.balance import MyBalance
 import os
 from os import path
 
@@ -68,6 +70,10 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         scen = SimplifiedHetMass()
     elif env_config["scenario_name"] == "simple_give_way":
         scen = SimpleGiveWay()
+    elif env_config["scenario_name"] == "rel_give_way":
+        scen = RelGiveWay()
+    elif env_config["scenario_name"] == "balance":
+        scen = MyBalance()
     else:
         scen = env_config["scenario_name"]
     env = VmasEnv(
@@ -84,6 +90,10 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         scen = SimplifiedHetMass()
     elif env_config["scenario_name"] == "simple_give_way":
         scen = SimpleGiveWay()
+    elif env_config["scenario_name"] == "rel_give_way":
+        scen = RelGiveWay()
+    elif env_config["scenario_name"] == "balance":
+        scen = MyBalance()
     else:
         scen = env_config["scenario_name"]
     env_test = VmasEnv(
