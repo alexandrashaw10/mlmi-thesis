@@ -37,7 +37,7 @@ parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=300)
-parser.add_argument('--n_iters', type=int, default=400)
+parser.add_argument('--n_iters', type=int, default=500)
 parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
 parser.add_argument('--num_epochs', type=int, default=40)

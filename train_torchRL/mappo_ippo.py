@@ -346,8 +346,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         sampling_start = time.time()
 
 
-    if log:
-        SAVE_DIR = './saved_models'
+    # if log:
+    #     SAVE_DIR = './saved_models'
         # if not path.isdir(SAVE_DIR):
         #     os.makedirs(SAVE_DIR)
 
@@ -363,12 +363,12 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
 
         # plt = PlotUtils.plot_function_arrows(SAVE_PATH, seed, config, model_config, env_config, config['vmas_device'])
         # wandb.log({"plot": wandb.Image(plt)})
-        SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
-        torch.save({
-            'policy_model_state_dict': policy_module.state_dict(),
-            'optimizer_state_dict': optim.state_dict(),
-            'critic_state_dict': value_module.state_dict(),
-            }, SAVE_PATH)
+        # SAVE_PATH = path.join(SAVE_DIR, exp_name + '_model.pth')
+        # torch.save({
+        #     'policy_model_state_dict': policy_module.state_dict(),
+        #     'optimizer_state_dict': optim.state_dict(),
+        #     'critic_state_dict': value_module.state_dict(),
+        #     }, SAVE_PATH)
 
     wandb.finish()
 

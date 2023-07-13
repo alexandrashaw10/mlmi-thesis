@@ -62,7 +62,7 @@ parser.add_argument('--constrain_critic', type=bool, default=False)
 parser.add_argument('--norm_type', type=str, default='1')
 
 # Env
-parser.add_argument('--agent_radius', type=str, default=0.12)
+parser.add_argument('--agent_radius', type=float, default=0.12)
 
 # run parameters
 # will run each constant for the number of seeds that are provided

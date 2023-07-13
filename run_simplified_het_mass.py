@@ -37,7 +37,7 @@ parser.add_argument('--entropy_eps', type=int, default=0)
 parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
-parser.add_argument('--max_steps', type=int, default=100)
+parser.add_argument('--max_steps', type=int, default=300)
 parser.add_argument('--n_iters', type=int, default=500)
 parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
@@ -99,7 +99,7 @@ config = {
     # Sampling
     "frames_per_batch": 60_000,#args.frames_per_batch,
     "max_steps": args.max_steps, # args.max_steps,
-    "vmas_envs": frames_per_batch // max_steps, # args.frames_per_batch // args.max_steps,
+    "vmas_envs": frames_per_batch // args.max_steps, # args.frames_per_batch // args.max_steps,
     "n_iters": args.n_iters, # args.n_iters,
     "total_frames": frames_per_batch * args.n_iters, #args.frames_per_batch * args.n_iters,
     "memory_size": frames_per_batch, # args.frames_per_batch,
