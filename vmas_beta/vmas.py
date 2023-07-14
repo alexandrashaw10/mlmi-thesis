@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Union
 
 import torch
+import time
 from tensordict.tensordict import TensorDict, TensorDictBase
 
 from torchrl.data import (

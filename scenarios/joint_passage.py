@@ -1,6 +1,8 @@
 #  Copyright (c) 2022-2023.
 #  ProrokLab (https://www.proroklab.org/)
 #  All rights reserved.
+import time
+
 import math
 from typing import Dict
 
@@ -41,7 +43,7 @@ def angle_to_vector(angle):
     return torch.cat([torch.cos(angle), torch.sin(angle)], dim=1)
 
 
-class Scenario(BaseScenario):
+class JointPassage(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.n_passages = kwargs.get("n_passages", 1)
         self.fixed_passage = kwargs.get("fixed_passage", True)
@@ -69,7 +71,7 @@ class Scenario(BaseScenario):
             device,
             x_semidim=1,
             y_semidim=1,
-            substeps=7 if not self.asym_package else 10,
+            substeps=20 if not self.asym_package else 40,
             joint_force=900 if self.asym_package else 400,
             collision_force=2500 if self.asym_package else 1500,
             drag=0.25 if not self.asym_package else 0.15,
@@ -381,20 +383,21 @@ class Scenario(BaseScenario):
             )
 
     def reward(self, agent: Agent):
+        start_time = time.time()
+        
         is_first = agent == self.world.agents[0]
 
         if is_first:
             self.rew = torch.zeros(
                 self.world.batch_dim, device=self.world.device, dtype=torch.float32
             )
-            self.pos_rew[:] = 0
-            self.rot_rew[:] = 0
-            self.collision_rew[:] = 0
+            self.pos_rew = torch.zeros_like(self.pos_rew)
+            self.rot_rew = torch.zeros_like(self.rot_rew)
+            self.collision_rew = torch.zeros_like(self.collision_rew)
 
             joint_passed = self.joint.landmark.state.pos[:, Y] > 0
             self.all_passed = (
-                torch.stack([a.state.pos[:, Y] for a in self.world.agents], dim=1)
-                > self.passage_width / 2
+                [a.state.pos[:, Y] > self.passage_width / 2 for a in self.world.agents]
             ).all(dim=1)
 
             # Pos shaping
@@ -480,10 +483,13 @@ class Scenario(BaseScenario):
             self.rew = (
                 self.pos_rew + self.rot_rew + self.collision_rew + self.energy_rew
             )
-
+        
+        end_time = time.time() - start_time
+        print(f"Reward took: {end_time}")
         return self.rew
 
     def is_out_or_touching_perimeter(self, agent: Agent):
+        start_time = time.time()
         is_out_or_touching_perimeter = torch.full(
             (self.world.batch_dim,), False, device=self.world.device
         )
@@ -491,6 +497,8 @@ class Scenario(BaseScenario):
         is_out_or_touching_perimeter += agent.state.pos[:, X] <= -self.world.x_semidim
         is_out_or_touching_perimeter += agent.state.pos[:, Y] >= self.world.y_semidim
         is_out_or_touching_perimeter += agent.state.pos[:, Y] <= -self.world.y_semidim
+        end_time = time.time() - start_time
+        print(f"Touching took: {end_time}")
         return is_out_or_touching_perimeter
 
     def observation(self, agent: Agent):
@@ -541,7 +549,7 @@ class Scenario(BaseScenario):
         )
 
     def done(self):
-        return torch.all(
+        result = torch.all(
             (
                 torch.linalg.vector_norm(
                     self.joint.landmark.state.pos - self.goal.state.pos, dim=1
@@ -556,6 +564,7 @@ class Scenario(BaseScenario):
             ),
             dim=1,
         )
+        return result
 
     def process_action(self, agent: Agent):
         if self.use_controller:
@@ -578,6 +587,7 @@ class Scenario(BaseScenario):
         return self.info_stored
 
     def create_passage_map(self, world: World):
+        start_time = time.time()
         # Add landmarks
         self.passages = []
 
@@ -606,7 +616,7 @@ class Scenario(BaseScenario):
                 self.collide_passages.append(passage)
             self.passages.append(passage)
             world.add_landmark(passage)
-
+        
         def joint_collides(e):
             if e in self.collide_passages and self.fixed_passage:
                 return e.neighbour

@@ -25,6 +25,7 @@ from scenarios.simplified_het_mass import SimplifiedHetMass
 from scenarios.simple_give_way import SimpleGiveWay
 from scenarios.rel_give_way import RelGiveWay
 from scenarios.balance import MyBalance
+from scenarios.joint_passage import JointPassage
 import os
 from os import path
 
@@ -64,20 +65,24 @@ class SaveBestModel:
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
+def return_scenario(name):
+    if name == "simplified_het_mass": 
+        return SimplifiedHetMass()
+    elif name == "simple_give_way":
+        return SimpleGiveWay()
+    elif name == "rel_give_way":
+        return RelGiveWay()
+    elif name == "balance":
+        return MyBalance()
+    elif name == "joint_passage":
+        return JointPassage()
+    
+    return env_config["scenario_name"]
+
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
-    if env_config["scenario_name"] == "simplified_het_mass": 
-        scen = SimplifiedHetMass()
-    elif env_config["scenario_name"] == "simple_give_way":
-        scen = SimpleGiveWay()
-    elif env_config["scenario_name"] == "rel_give_way":
-        scen = RelGiveWay()
-    elif env_config["scenario_name"] == "balance":
-        scen = MyBalance()
-    else:
-        scen = env_config["scenario_name"]
     env = VmasEnv(
-        scenario=scen,
+        scenario=return_scenario(env_config["scenario_name"]),
         num_envs=config["vmas_envs"],
         continuous_actions=True,
         max_steps=config["max_steps"],
@@ -86,18 +91,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         # Scenario kwargs
         **env_config,
     )
-    if env_config["scenario_name"] == "simplified_het_mass": 
-        scen = SimplifiedHetMass()
-    elif env_config["scenario_name"] == "simple_give_way":
-        scen = SimpleGiveWay()
-    elif env_config["scenario_name"] == "rel_give_way":
-        scen = RelGiveWay()
-    elif env_config["scenario_name"] == "balance":
-        scen = MyBalance()
-    else:
-        scen = env_config["scenario_name"]
     env_test = VmasEnv(
-        scenario=scen,
+        scenario=return_scenario(env_config["scenario_name"]),
         num_envs=config["evaluation_episodes"], # it must run a new episode to evaluate each time
         continuous_actions=True,
         max_steps=config["max_steps"],
@@ -106,8 +101,6 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
         # Scenario kwargs
         **env_config,
     )
-    # why was this here?
-    # env_config.update({"n_agents": env.n_agents, "scenario_name": env_config["scenario_name"]})
 
     # Policy
     actor_net = nn.Sequential(
@@ -228,6 +221,7 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
             group=model_name,
             save_code=True,
             config=config,
+
         )
         wandb.run.log_code(".")
 
