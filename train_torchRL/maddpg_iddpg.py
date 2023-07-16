@@ -8,34 +8,54 @@ import time
 # import hydra
 import torch
 
-from tensordict.nn import TensorDictModule
+from dotmap import DotMap
+
+from curr_vmas.tensordict.tensordict.nn import TensorDictModule
 from torch import nn
-from torchrl.collectors import SyncDataCollector
-from torchrl.data import TensorDictReplayBuffer
-from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
-from torchrl.data.replay_buffers.storages import LazyTensorStorage
-from torchrl.envs import TransformedEnv #, RewardSum
-from train_torchRL.transforms import RewardSum
-from torchrl.envs.libs.vmas import VmasEnv
-from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import (
+from curr_vmas.rl.torchrl.collectors import SyncDataCollector
+from curr_vmas.rl.torchrl.data import TensorDictReplayBuffer
+from curr_vmas.rl.torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
+from curr_vmas.rl.torchrl.data.replay_buffers.storages import LazyTensorStorage
+from curr_vmas.rl.torchrl.transforms import TransformedEnv,RewardSum
+from curr_vmas.rl.torchrl.envs.libs.vmas import VmasEnv
+from curr_vmas.rl.torchrl.envs.utils import ExplorationType, set_exploration_type
+from curr_vmas.rl.torchrl.modules import (
     AdditiveGaussianWrapper,
     ProbabilisticActor,
     TanhDelta,
     ValueOperator,
 )
-# from torchrl.modules.models.multiagent import MultiAgentMLP
+# from curr_vmas.rl.torchrl.modules.models.multiagent import MultiAgentMLP
 from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
-from torchrl.objectives import DDPGLoss, SoftUpdate, ValueEstimators
+from curr_vmas.rl.torchrl.objectives import DDPGLoss, SoftUpdate, ValueEstimators
 from logging_utils_new import init_logging, log_evaluation, log_training
 
+from scenarios.simplified_het_mass import SimplifiedHetMass
+from scenarios.simple_give_way import SimpleGiveWay
+from scenarios.rel_give_way import RelGiveWay
+from scenarios.balance import MyBalance
+from scenarios.joint_passage import JointPassage
 
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
 
+def return_scenario(name):
+    if name == "simplified_het_mass": 
+        return SimplifiedHetMass()
+    elif name == "simple_give_way":
+        return SimpleGiveWay()
+    elif name == "rel_give_way":
+        return RelGiveWay()
+    elif name == "balance":
+        return MyBalance()
+    elif name == "joint_passage":
+        return JointPassage()
+    
+    return name
+
 # don't use hydra because have own config system
 # @hydra.main(version_base="1.1", config_path=".", config_name="maddpg_iddpg")
-def train(cfg: "DictConfig"):  # noqa: F821
+def train(cfg: DotMap):  # noqa: F821
     # Seeding
     torch.manual_seed(cfg.seed)
 
@@ -46,7 +66,7 @@ def train(cfg: "DictConfig"):  # noqa: F821
 
     # Create env and env_test
     env = VmasEnv(
-        scenario=cfg.env.scenario_name,
+        scenario=return_scenario(cfg.env.scenario_name),
         num_envs=cfg.env.vmas_envs,
         continuous_actions=True,
         max_steps=cfg.env.max_steps,
@@ -61,7 +81,7 @@ def train(cfg: "DictConfig"):  # noqa: F821
     )
 
     env_test = VmasEnv(
-        scenario=cfg.env.scenario_name,
+        scenario=return_scenario(cfg.env.scenario_name),
         num_envs=cfg.eval.evaluation_episodes,
         continuous_actions=True,
         max_steps=cfg.env.max_steps,

@@ -10,10 +10,10 @@ import torch
 from torch import Tensor
 
 from vmas import render_interactively
-from vmas.simulator.core import Agent, Box, Landmark, Sphere, World, Line
+from vmas.simulator.core import Agent, Box, Landmark, Sphere, World, Line, Entity
 from vmas.simulator.joints import Joint
 from vmas.simulator.scenario import BaseScenario
-from vmas.simulator.utils import Color, Y, X
+from vmas.simulator.utils import Color, Y, X, LINE_MIN_DIST
 from vmas.simulator.controllers.velocity_controller import VelocityController
 
 
@@ -196,6 +196,79 @@ class JointPassage(BaseScenario):
         self.all_passed = torch.full((batch_dim,), False, device=device)
 
         return world
+
+    def get_distance_from_point_to_line(
+        self, entity: Line, test_point_pos, env_index: int = None
+    ):
+        self.world._check_batch_index(env_index)
+
+        closest_point = self.world._get_closest_point_line(
+            entity.state.pos, entity.state.rot, entity.shape.length, test_point_pos
+        )
+        distance = torch.linalg.vector_norm(test_point_pos - closest_point, dim=1)
+        return_value = distance - LINE_MIN_DIST
+
+        if env_index is not None:
+            return_value = return_value[env_index]
+        return return_value
+
+    def get_distance_from_point_to_box(
+        self, entity: Box, test_point_pos, env_index: int = None
+    ):
+        self.world._check_batch_index(env_index)
+
+        closest_point = self.world._get_closest_point_box(entity, test_point_pos)
+        distance = torch.linalg.vector_norm(test_point_pos - closest_point, dim=1)
+        return_value = distance - LINE_MIN_DIST
+        
+        if env_index is not None:
+            return_value = return_value[env_index]
+        return return_value
+
+    def get_distance_to_wall(self, agent: Agent, wall: Landmark, env_index: int = None):
+        # a_shape = agent.shape # Agents are spheres
+        # wall_shape = wall.shape # walls are Lines
+        line, sphere = wall, agent
+        
+        dist = self.get_distance_from_point_to_line(line, sphere.state.pos, env_index)
+        return_value = dist - sphere.shape.radius
+        return return_value
+
+    def is_overlapping(self, agent: Agent, passage: Landmark, env_index: int = None):
+        self.world._check_batch_index(env_index)
+
+        box, sphere = passage, agent
+
+        closest_point = self.world._get_closest_point_box(box, sphere.state.pos)
+
+        distance_sphere_closest_point = torch.linalg.vector_norm(
+            sphere.state.pos - closest_point, dim=1
+        )
+        distance_sphere_box = torch.linalg.vector_norm(
+            sphere.state.pos - box.state.pos, dim=1
+        )
+        distance_closest_point_box = torch.linalg.vector_norm(
+            box.state.pos - closest_point, dim=1
+        )
+        dist_min = sphere.shape.radius + LINE_MIN_DIST
+        return_value = (distance_sphere_box < distance_closest_point_box) + (
+            distance_sphere_closest_point < dist_min
+        )
+        
+        if env_index is not None:
+            print(f"env_index exists")
+            return_value = return_value[env_index]
+
+        return return_value
+
+    def get_distance_to_passage(self, agent: Agent, passage: Landmark, env_index: int = None):
+        box, sphere = passage, agent
+        dist = self.get_distance_from_point_to_box(box, sphere.state.pos, env_index)
+        return_value = dist - sphere.shape.radius
+        is_overlapping = self.is_overlapping(agent, passage)
+        return_value[is_overlapping] = -1
+
+        return return_value
 
     def reset_world_at(self, env_index: int = None):
         start_angle = torch.zeros(
@@ -383,7 +456,7 @@ class JointPassage(BaseScenario):
             )
 
     def reward(self, agent: Agent):
-        start_time = time.time()
+        # start_time = time.time()
         
         is_first = agent == self.world.agents[0]
 
@@ -396,9 +469,14 @@ class JointPassage(BaseScenario):
             self.collision_rew = torch.zeros_like(self.collision_rew)
 
             joint_passed = self.joint.landmark.state.pos[:, Y] > 0
-            self.all_passed = (
-                [a.state.pos[:, Y] > self.passage_width / 2 for a in self.world.agents]
-            ).all(dim=1)
+            
+            self.all_passed = torch.all(
+                torch.stack(
+                    [a.state.pos[:, Y] > self.passage_width / 2 for a in self.world.agents],
+                    dim=1
+                ),
+                dim=1
+            )
 
             # Pos shaping
             joint_dist_to_closest_pass = torch.stack(
@@ -406,11 +484,11 @@ class JointPassage(BaseScenario):
                     torch.linalg.vector_norm(
                         self.joint.landmark.state.pos - p.state.pos, dim=1
                     )
-                    for p in self.passages
-                    if not p.collide
+                    for p in self.passages if not p.collide
                 ],
                 dim=1,
             ).min(dim=1)[0]
+
             joint_shaping = joint_dist_to_closest_pass * self.pos_shaping_factor
             self.pos_rew[~joint_passed] += (self.joint.pos_shaping_pre - joint_shaping)[
                 ~joint_passed
@@ -447,27 +525,66 @@ class JointPassage(BaseScenario):
             ]
             self.joint.rot_shaping_post = joint_shaping
 
-            # Agent collisions
-            for a in self.world.agents + ([self.mass] if self.asym_package else []):
-                for passage in self.passages:
-                    if passage.collide:
-                        self.collision_rew[
-                            self.world.get_distance(a, passage)
-                            <= self.min_collision_distance
-                        ] += self.collision_reward
-                    for wall in self.walls:
-                        self.collision_rew[
-                            self.world.get_distance(a, wall)
-                            <= self.min_collision_distance
-                        ] += self.collision_reward
+            # t = time.time()
 
-            # Joint collisions
-            for i, p in enumerate(self.passages):
-                if p.collide:
-                    self.collision_rew[
-                        self.world.get_distance(p, self.joint.landmark)
-                        <= self.min_collision_distance
-                    ] += self.collision_reward
+            # r = time.time()
+            # passages = [p for p in self.passages if p.collide]
+            # print(f"len passages: {len(passages)}")
+            # obj = self.world.agents + ([self.mass] if self.asym_package else [])
+            # print(f"len objects: {len(obj)}")
+            # print(f"len walls: {len(self.walls)}")
+
+            # pass_pairs = torch.stack([self.get_distance_to_passage(a, p) <= self.min_collision_distance
+            #     for a in obj for p in passages], dim=1)
+            # wall_pairs = torch.stack([self.get_distance_to_wall(a, w) <= self.min_collision_distance
+            #     for a in obj for w in self.walls], dim=1)
+            # took = time.time() - r
+            # print(f"collision distances new took: {took}")
+
+            # num_collisions = torch.sum(pass_pairs, dim=-1) + torch.sum(wall_pairs, dim=-1)
+            # self.collision_rew += num_collisions * self.collision_reward
+
+            # Agent collisions
+            # r = time.time()
+            # dists = [self.world.get_distance(a, o) <= self.min_collision_distance
+            #         for a in obj
+            #         for o in passages + self.walls]
+            # took = time.time() - r
+            # print(f"collision distances new took: {took}")
+
+            # num_collisions = sum(dists)
+            # self.collision_rew += num_collisions * self.collision_reward
+
+            # took = time.time() - t
+            # print(f"Agent collisions new took: {took}, reward: {self.collision_reward}")
+
+            # t = time.time()
+            # # Agent collisions
+            # for a in self.world.agents + ([self.mass] if self.asym_package else []):
+            #     for passage in self.passages:
+            #         if passage.collide:
+            #             self.collision_rew[
+            #                 self.world.get_distance(a, passage)
+            #                 <= self.min_collision_distance
+            #             ] += self.collision_reward
+            #     for wall in self.walls:
+            #         self.collision_rew[
+            #             self.world.get_distance(a, wall)
+            #             <= self.min_collision_distance
+            #         ] += self.collision_reward
+            # took = time.time() - t
+            # print(f"Agent collisions old took: {took}, reward: {self.collision_reward}")
+
+            # t = time.time()
+            # # Joint collisions
+            # for i, p in enumerate(self.passages):
+            #     if p.collide:
+            #         self.collision_rew[
+            #             self.world.get_distance(p, self.joint.landmark)
+            #             <= self.min_collision_distance
+            #         ] += self.collision_reward
+            # took = time.time() - t
+            # print(f"Joint collisions took: {took}")
 
             # Energy reward
             self.energy_expenditure = torch.stack(
@@ -484,12 +601,12 @@ class JointPassage(BaseScenario):
                 self.pos_rew + self.rot_rew + self.collision_rew + self.energy_rew
             )
         
-        end_time = time.time() - start_time
-        print(f"Reward took: {end_time}")
+        # end_time = time.time() - start_time
+        # print(f"Reward took: {end_time}")
         return self.rew
 
     def is_out_or_touching_perimeter(self, agent: Agent):
-        start_time = time.time()
+        # start_time = time.time()
         is_out_or_touching_perimeter = torch.full(
             (self.world.batch_dim,), False, device=self.world.device
         )
@@ -497,8 +614,8 @@ class JointPassage(BaseScenario):
         is_out_or_touching_perimeter += agent.state.pos[:, X] <= -self.world.x_semidim
         is_out_or_touching_perimeter += agent.state.pos[:, Y] >= self.world.y_semidim
         is_out_or_touching_perimeter += agent.state.pos[:, Y] <= -self.world.y_semidim
-        end_time = time.time() - start_time
-        print(f"Touching took: {end_time}")
+        # end_time = time.time() - start_time
+        # print(f"Touching took: {end_time}")
         return is_out_or_touching_perimeter
 
     def observation(self, agent: Agent):
@@ -587,7 +704,6 @@ class JointPassage(BaseScenario):
         return self.info_stored
 
     def create_passage_map(self, world: World):
-        start_time = time.time()
         # Add landmarks
         self.passages = []
 

@@ -3,6 +3,8 @@ import time
 import torch
 import wandb
 
+from dotmap import DotMap
+
 from tensordict.nn import TensorDictModule
 from modules.tensordict_module import exploration
 from tensordict.nn.distributions import NormalParamExtractor
@@ -139,9 +141,9 @@ for seed in args.seed:
         for lip_constant in args.lip_sigma:
             # update config with new lipschitz constraint
             config["model"].update({"lip_sigma": lip_constant})
-            train(config)
+            train(DotMap(config))
 
     else:
-        train(config)
+        train(DotMap(config))
 
 
