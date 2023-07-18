@@ -14,17 +14,18 @@ from torchrl.record.loggers.wandb import WandbLogger
 
 
 def init_logging(cfg, model_name: str):
+    exp_name = generate_exp_name(cfg.env.scenario_name, model_name)
     logger = get_logger(
         logger_type=cfg.logger.backend,
         logger_name=os.getcwd(),
-        experiment_name=generate_exp_name(cfg.env.scenario_name, model_name),
+        experiment_name=exp_name,
         wandb_kwargs={
             "group": model_name,
             "project": f"torchrl_{cfg.env.scenario_name}",
         },
     )
     logger.log_hparams(cfg)
-    return logger
+    return logger, exp_name
 
 
 def log_training(
@@ -119,10 +120,11 @@ def log_evaluation(
         rollouts[k] = r[: done_index + 1]
 
     rewards = [td.get(("next", "agents", "reward")).sum(0).mean() for td in rollouts]
+    reward_mean = sum(rewards) / len(rollouts)
     to_log = {
         "eval/episode_reward_min": min(rewards),
         "eval/episode_reward_max": max(rewards),
-        "eval/episode_reward_mean": sum(rewards) / len(rollouts),
+        "eval/episode_reward_mean": reward_mean,
         "eval/episode_len_mean": sum([td.batch_size[0] for td in rollouts])
         / len(rollouts),
         "eval/evaluation_time": evaluation_time,
@@ -145,3 +147,5 @@ def log_evaluation(
         for key, value in to_log.items():
             logger.log_scalar(key.replace("/", "_"), value, step=step)
         logger.log_video("eval_video", vid, step=step)
+
+    return reward_mean

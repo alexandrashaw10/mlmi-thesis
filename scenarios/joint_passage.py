@@ -466,7 +466,6 @@ class JointPassage(BaseScenario):
             )
             self.pos_rew = torch.zeros_like(self.pos_rew)
             self.rot_rew = torch.zeros_like(self.rot_rew)
-            self.collision_rew = torch.zeros_like(self.collision_rew)
 
             joint_passed = self.joint.landmark.state.pos[:, Y] > 0
             
@@ -525,84 +524,112 @@ class JointPassage(BaseScenario):
             ]
             self.joint.rot_shaping_post = joint_shaping
 
-            # t = time.time()
+            if self.collision_reward != 0:
+                t = time.time()
+                r = time.time()
+                self.collision_rew = torch.zeros_like(self.collision_rew)
+                passages = [p for p in self.passages if p.collide]
+                print(f"len passages: {len(passages)}")
+                obj = self.world.agents + ([self.mass] if self.asym_package else [])
+                print(f"len objects: {len(obj)}")
+                print(f"len walls: {len(self.walls)}")
 
-            # r = time.time()
-            # passages = [p for p in self.passages if p.collide]
-            # print(f"len passages: {len(passages)}")
-            # obj = self.world.agents + ([self.mass] if self.asym_package else [])
-            # print(f"len objects: {len(obj)}")
-            # print(f"len walls: {len(self.walls)}")
+                pass_pairs = torch.stack([self.get_distance_to_passage(a, p) <= self.min_collision_distance
+                    for a in obj for p in passages], dim=1)
+                wall_pairs = torch.stack([self.get_distance_to_wall(a, w) <= self.min_collision_distance
+                    for a in obj for w in self.walls], dim=1)
+                took = time.time() - r
+                print(f"collision distances new took: {took}")
 
-            # pass_pairs = torch.stack([self.get_distance_to_passage(a, p) <= self.min_collision_distance
-            #     for a in obj for p in passages], dim=1)
-            # wall_pairs = torch.stack([self.get_distance_to_wall(a, w) <= self.min_collision_distance
-            #     for a in obj for w in self.walls], dim=1)
-            # took = time.time() - r
-            # print(f"collision distances new took: {took}")
+                num_collisions = torch.sum(pass_pairs, dim=-1) + torch.sum(wall_pairs, dim=-1)
+                self.collision_rew += num_collisions * self.collision_reward
 
-            # num_collisions = torch.sum(pass_pairs, dim=-1) + torch.sum(wall_pairs, dim=-1)
-            # self.collision_rew += num_collisions * self.collision_reward
+                # Agent collisions
+                r = time.time()
+                dists = [self.world.get_distance(a, o) <= self.min_collision_distance
+                        for a in obj
+                        for o in passages + self.walls]
+                took = time.time() - r
+                print(f"collision distances new took: {took}")
 
-            # Agent collisions
-            # r = time.time()
-            # dists = [self.world.get_distance(a, o) <= self.min_collision_distance
-            #         for a in obj
-            #         for o in passages + self.walls]
-            # took = time.time() - r
-            # print(f"collision distances new took: {took}")
+                num_collisions = sum(dists)
+                self.collision_rew += num_collisions * self.collision_reward
 
-            # num_collisions = sum(dists)
-            # self.collision_rew += num_collisions * self.collision_reward
+                took = time.time() - t
+                print(f"Agent collisions new took: {took}, reward: {self.collision_reward}")
 
-            # took = time.time() - t
-            # print(f"Agent collisions new took: {took}, reward: {self.collision_reward}")
+                t = time.time()
+                # Agent collisions
+                for a in self.world.agents + ([self.mass] if self.asym_package else []):
+                    for passage in self.passages:
+                        if passage.collide:
+                            self.collision_rew[
+                                self.world.get_distance(a, passage)
+                                <= self.min_collision_distance
+                            ] += self.collision_reward
+                    for wall in self.walls:
+                        self.collision_rew[
+                            self.world.get_distance(a, wall)
+                            <= self.min_collision_distance
+                        ] += self.collision_reward
+                took = time.time() - t
+                print(f"Agent collisions old took: {took}, reward: {self.collision_reward}")
 
-            # t = time.time()
-            # # Agent collisions
-            # for a in self.world.agents + ([self.mass] if self.asym_package else []):
-            #     for passage in self.passages:
-            #         if passage.collide:
-            #             self.collision_rew[
-            #                 self.world.get_distance(a, passage)
-            #                 <= self.min_collision_distance
-            #             ] += self.collision_reward
-            #     for wall in self.walls:
-            #         self.collision_rew[
-            #             self.world.get_distance(a, wall)
-            #             <= self.min_collision_distance
-            #         ] += self.collision_reward
-            # took = time.time() - t
-            # print(f"Agent collisions old took: {took}, reward: {self.collision_reward}")
+                t = time.time()
+                # Joint collisions
+                for i, p in enumerate(self.passages):
+                    if p.collide:
+                        self.collision_rew[
+                            self.world.get_distance(p, self.joint.landmark)
+                            <= self.min_collision_distance
+                        ] += self.collision_reward
+                took = time.time() - t
+                print(f"Joint collisions took: {took}")
 
-            # t = time.time()
-            # # Joint collisions
-            # for i, p in enumerate(self.passages):
-            #     if p.collide:
-            #         self.collision_rew[
-            #             self.world.get_distance(p, self.joint.landmark)
-            #             <= self.min_collision_distance
-            #         ] += self.collision_reward
-            # took = time.time() - t
-            # print(f"Joint collisions took: {took}")
+                if self.energy_reward_coeff != 0:
+                # Energy reward
+                    self.energy_expenditure = torch.stack(
+                        [
+                            torch.linalg.vector_norm(a.action.u, dim=-1)
+                            / math.sqrt(self.world.dim_p * (a.f_range**2))
+                            for a in self.world.agents
+                        ],
+                        dim=1,
+                    ).sum(-1)
 
-            # Energy reward
-            self.energy_expenditure = torch.stack(
-                [
-                    torch.linalg.vector_norm(a.action.u, dim=-1)
-                    / math.sqrt(self.world.dim_p * (a.f_range**2))
-                    for a in self.world.agents
-                ],
-                dim=1,
-            ).sum(-1)
-            self.energy_rew = -self.energy_expenditure * self.energy_reward_coeff
+                    self.energy_rew = -self.energy_expenditure * self.energy_reward_coeff
 
-            self.rew = (
-                self.pos_rew + self.rot_rew + self.collision_rew + self.energy_rew
-            )
+                    self.rew = (
+                        self.pos_rew + self.rot_rew + self.collision_rew + self.energy_rew
+                    )
+                else:
+                    self.rew = (
+                        self.pos_rew + self.rot_rew + self.collision_rew
+                    )
+
+            if self.energy_reward_coeff != 0:
+                # Energy reward
+                self.energy_expenditure = torch.stack(
+                    [
+                        torch.linalg.vector_norm(a.action.u, dim=-1)
+                        / math.sqrt(self.world.dim_p * (a.f_range**2))
+                        for a in self.world.agents
+                    ],
+                    dim=1,
+                ).sum(-1)
+
+                self.energy_rew = -self.energy_expenditure * self.energy_reward_coeff
+
+                self.rew = (
+                    self.pos_rew + self.rot_rew + self.energy_rew
+                )
+            else:
+                self.rew = (
+                    self.pos_rew + self.rot_rew
+                )
         
-        # end_time = time.time() - start_time
-        # print(f"Reward took: {end_time}")
+            # end_time = time.time() - start_time
+            # print(f"Reward took: {end_time}")
         return self.rew
 
     def is_out_or_touching_perimeter(self, agent: Agent):

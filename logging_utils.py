@@ -28,12 +28,12 @@ from torchrl.record.loggers.wandb import WandbLogger
 
 from evaluate.distance_metrics import *
 from evaluate.evaluate_model import TorchDiagGaussian
-from models.fcnet import MyFullyConnectedNetwork
+# from models.fcnet import MyFullyConnectedNetwork
 from models.gppo import GPPO
 from rllib_differentiable_comms.multi_action_dist import (
     TorchHomogeneousMultiActionDistribution,
 )
-from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
+# from rllib_differentiable_comms.multi_trainer import MultiPPOTrainer
 
 
 def compute_neural_diversity(
@@ -170,7 +170,8 @@ def log_evaluation(
         commit=False,
     ),
 
-    reward_mean = sum([td["next", "reward"].sum(0).mean() for td in rollouts]) / len(rollouts)
+    rewards = [td["next", "reward"].sum(0).mean() for td in rollouts]
+    reward_mean = sum(rewards) / len(rollouts)
 
     #snd_mean, snd_std, snd_min, snd_max = compute_neural_diversity(rollouts, policy_module)
     # if log_diversity:
@@ -196,12 +197,8 @@ def log_evaluation(
     # else:
     logger.experiment.log(
         {
-            "eval/episode_reward_min": min(
-                [td["next", "reward"].sum(0).mean() for td in rollouts]
-            ),
-            "eval/episode_reward_max": max(
-                [td["next", "reward"].sum(0).mean() for td in rollouts]
-            ),
+            "eval/episode_reward_min": min(rewards),
+            "eval/episode_reward_max": max(rewards),
             "eval/episode_reward_mean": reward_mean,
             "eval/episode_len_mean": sum([td.batch_size[0] for td in rollouts])
             / len(rollouts),

@@ -3,15 +3,19 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+
 import time
-from os import path
 
 # import hydra
 import torch
 
+from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
+from models.multiagent_mlp import MultiAgentMLP
+from monotonenorm import GroupSort
 from dotmap import DotMap
 
 from tensordict.nn import TensorDictModule
+from tensordict.nn.distributions import NormalParamExtractor
 from torch import nn
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import TensorDictReplayBuffer
@@ -19,40 +23,19 @@ from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from torchrl.envs import RewardSum, TransformedEnv
 from torchrl.envs.libs.vmas import VmasEnv
-from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import (
-    AdditiveGaussianWrapper,
-    ProbabilisticActor,
-    TanhDelta,
-    ValueOperator,
-)
-# from torchrl.modules.models.multiagent import MultiAgentMLP
-from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
-from torchrl.objectives import DDPGLoss, SoftUpdate, ValueEstimators
+from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
+from torchrl.modules.models.multiagent import MultiAgentMLP
+from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from logging_utils_new import init_logging, log_evaluation, log_training
 
 from scenarios.simplified_het_mass import SimplifiedHetMass
 from scenarios.simple_give_way import SimpleGiveWay
 from scenarios.rel_give_way import RelGiveWay
+from scenarios.goal_give_way import GoalGiveWay
 from scenarios.balance import MyBalance
 from scenarios.joint_passage import JointPassage
+from scenarios.transport import Transport
 
-def rendering_callback(env, td):
-    env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
-
-def return_scenario(name):
-    if name == "simplified_het_mass": 
-        return SimplifiedHetMass()
-    elif name == "simple_give_way":
-        return SimpleGiveWay()
-    elif name == "rel_give_way":
-        return RelGiveWay()
-    elif name == "balance":
-        return MyBalance()
-    elif name == "joint_passage":
-        return JointPassage()
-    
-    return name
 
 class SaveBestModel:
     """
@@ -84,12 +67,31 @@ class SaveBestModel:
                 'critic_state_dict': value_module.state_dict(),
                 }, SAVE_PATH)
 
-# don't use hydra because have own config system
-# @hydra.main(version_base="1.1", config_path=".", config_name="maddpg_iddpg")
+
+def rendering_callback(env, td):
+    env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
+
+def return_scenario(name):
+    if name == "simplified_het_mass": 
+        return SimplifiedHetMass()
+    elif name == "simple_give_way":
+        return SimpleGiveWay()
+    elif name == "rel_give_way":
+        return RelGiveWay()
+    elif name == "balance":
+        return MyBalance()
+    elif name == "joint_passage":
+        return JointPassage()
+    elif name == "goal_give_way":
+        return GoalGiveWay()
+    elif name == "transport":
+        return Transport()
+    return name
+
+# @hydra.main(version_base="1.1", config_path=".", config_name="mappo_ippo")
 def train(cfg: DotMap):  # noqa: F821
     # Seeding
     torch.manual_seed(cfg.seed)
-    print(f"device: {cfg.env.device}")
 
     # Sampling
     cfg.env.vmas_envs = cfg.collector.frames_per_batch // cfg.env.max_steps
@@ -140,25 +142,21 @@ def train(cfg: DotMap):  # noqa: F821
         norm_type=cfg.model.norm_type,
     )
     policy_module = TensorDictModule(
-        actor_net, in_keys=[("agents", "observation")], out_keys=[("agents", "param")]
+        actor_net,
+        in_keys=[("agents", "observation")],
+        out_keys=[("agents", "loc"), ("agents", "scale")],
     )
     policy = ProbabilisticActor(
         module=policy_module,
         spec=env.unbatched_action_spec,
-        in_keys=[("agents", "param")],
+        in_keys=[("agents", "loc"), ("agents", "scale")],
         out_keys=[env.action_key],
-        distribution_class=TanhDelta,
+        distribution_class=TanhNormal,
         distribution_kwargs={
             "min": env.unbatched_action_spec[("agents", "action")].space.minimum,
             "max": env.unbatched_action_spec[("agents", "action")].space.maximum,
         },
-        return_log_prob=False,
-    )
-
-    policy_explore = AdditiveGaussianWrapper(
-        policy,
-        annealing_num_steps=int(cfg.collector.total_frames * (1 / 2)),
-        action_key=env.action_key,
+        return_log_prob=True,
     )
 
     # Critic
@@ -180,13 +178,12 @@ def train(cfg: DotMap):  # noqa: F821
     )
     value_module = ValueOperator(
         module=module,
-        in_keys=[("agents", "observation"), env.action_key],
-        out_keys=[("agents", "state_action_value")],
+        in_keys=[("agents", "observation")],
     )
 
     collector = SyncDataCollector(
         env,
-        policy_explore,
+        policy,
         device=cfg.env.device,
         storing_device=cfg.train.device,
         frames_per_batch=cfg.collector.frames_per_batch,
@@ -199,16 +196,18 @@ def train(cfg: DotMap):  # noqa: F821
         batch_size=cfg.train.minibatch_size,
     )
 
-    loss_module = DDPGLoss(
-        actor_network=policy, value_network=value_module, delay_value=True
+    # Loss
+    loss_module = ClipPPOLoss(
+        actor=policy,
+        critic=value_module,
+        clip_epsilon=cfg.loss.clip_epsilon,
+        entropy_coef=cfg.loss.entropy_eps,
+        normalize_advantage=False,
     )
-    loss_module.set_keys(
-        state_action_value=("agents", "state_action_value"),
-        reward=env.reward_key,
+    loss_module.set_keys(reward=env.reward_key, action=env.action_key)
+    loss_module.make_value_estimator(
+        ValueEstimators.GAE, gamma=cfg.loss.gamma, lmbda=cfg.loss.lmbda
     )
-    loss_module.make_value_estimator(ValueEstimators.TD0, gamma=cfg.loss.gamma)
-    target_net_updater = SoftUpdate(loss_module, eps=1 - cfg.loss.tau)
-
     optim = torch.optim.Adam(loss_module.parameters(), cfg.train.lr)
 
     # Logging
@@ -216,7 +215,7 @@ def train(cfg: DotMap):  # noqa: F821
         model_name = (
             ("Het" if not cfg.model.shared_parameters else "")
             + ("MA" if cfg.model.centralised_critic else "I")
-            + "DDPG"
+            + "PPO"
         )
         logger, exp_name = init_logging(cfg, model_name)
         save_best_model = SaveBestModel(exp_name)
@@ -236,6 +235,12 @@ def train(cfg: DotMap):  # noqa: F821
             .expand(tensordict_data.get(("next", env.reward_key)).shape),
         )  # We need to expand the done to match the reward shape
 
+        with torch.no_grad():
+            loss_module.value_estimator(
+                tensordict_data,
+                params=loss_module.critic_params,
+                target_params=loss_module.target_critic_params,
+            )
         current_frames = tensordict_data.numel()
         total_frames += current_frames
         data_view = tensordict_data.reshape(-1)
@@ -249,11 +254,15 @@ def train(cfg: DotMap):  # noqa: F821
                 loss_vals = loss_module(subdata)
                 training_tds.append(loss_vals.detach())
 
-                loss_value = loss_vals["loss_actor"] + loss_vals["loss_value"]
+                loss_value = (
+                    loss_vals["loss_objective"]
+                    + loss_vals["loss_critic"]
+                    + loss_vals["loss_entropy"]
+                )
 
                 loss_value.backward()
 
-                if not cfg.model.constrain_lipschitz:
+                if not model_config["constrain_lipschitz"]:
                     total_norm = torch.nn.utils.clip_grad_norm_(
                         loss_module.parameters(), cfg.train.max_grad_norm
                     )
@@ -261,10 +270,7 @@ def train(cfg: DotMap):  # noqa: F821
 
                 optim.step()
                 optim.zero_grad()
-                # optim.zero_grad(set_to_none=True)
-                target_net_updater.step()
 
-        policy_explore.step(frames=current_frames)  # Update exploration annealing
         collector.update_policy_weights_()
 
         training_time = time.time() - training_start
@@ -294,7 +300,7 @@ def train(cfg: DotMap):  # noqa: F821
             and cfg.logger.backend
         ):
             evaluation_start = time.time()
-            with torch.no_grad() and set_exploration_type(ExplorationType.MEAN):
+            with torch.no_grad():
                 env_test.frames = []
                 rollouts = env_test.rollout(
                     max_steps=cfg.env.max_steps,

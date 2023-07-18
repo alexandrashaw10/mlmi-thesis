@@ -19,17 +19,21 @@ from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name
 from torchrl.record.loggers.wandb import WandbLogger
+
 from monotonenorm import GroupSort
+
 from logging_utils import log_evaluation, log_training, compute_neural_diversity
 from scenarios.simplified_het_mass import SimplifiedHetMass
 from scenarios.simple_give_way import SimpleGiveWay
 from scenarios.rel_give_way import RelGiveWay
+from scenarios.goal_give_way import GoalGiveWay
 from scenarios.balance import MyBalance
 from scenarios.joint_passage import JointPassage
+from scenarios.transport import Transport
+from scenarios.goal_rel_give_way import GoalRelGiveWay
+
 import os
 from os import path
-
-from utils import PlotUtils
 
 class SaveBestModel:
     """
@@ -76,8 +80,13 @@ def return_scenario(name):
         return MyBalance()
     elif name == "joint_passage":
         return JointPassage()
-    
-    return env_config["scenario_name"]
+    elif name == "goal_give_way":
+        return GoalGiveWay()
+    elif name == "transport":
+        return Transport()
+    elif name == "goal_rel_give_way":
+        return GoalRelGiveWay()
+    return name
 
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
     # Create env and env_test
@@ -277,7 +286,8 @@ def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):
                     training_tds[-1]["grad_norm"] = total_norm.mean()
 
                 optim.step()
-                optim.zero_grad() # sets the gradients of all optimized tensors to zero
+                # optim.zero_grad() # sets the gradients of all optimized tensors to zero
+                optim.zero_grad(set_to_none=True)
 
         collector.update_policy_weights_() # handles policy of data collector and trained policy on diff devices
 

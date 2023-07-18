@@ -3,7 +3,7 @@ import time
 import torch
 import wandb
 
-from dotmap import DotMap
+from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
 
 from tensordict.nn import TensorDictModule
 from modules.tensordict_module import exploration
@@ -22,28 +22,31 @@ from logging_utils import log_evaluation, log_training
 from monotonenorm import GroupSort
 import argparse
 
-# train this run using MAPPO and HetMAPPO
-from train_torchRL.maddpg_iddpg import train
+from dotmap import DotMap
 
-parser = argparse.ArgumentParser(description = 'Running Rel Give Way Test')
+# train this run using MAPPO and HetMAPPO
+from train_torchRL.mappo_ippo import trainMAPPO_IPPO
+
+parser = argparse.ArgumentParser(description = 'Running Transport Test')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9) 
 parser.add_argument('--seed', nargs='+', type=int, default=0) # for list of seeds
-# DDPG
-parser.add_argument('--tau', type=float, default=0.005) 
-
+# PPO
+parser.add_argument('--lmbda', type=float, default=0.9)
+parser.add_argument('--entropy_eps', type=float, default=0.0)
+parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=300)
 parser.add_argument('--n_iters', type=int, default=400)
-parser.add_argument('--device', type=str, default="cuda:0")
+parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
-parser.add_argument('--num_epochs', type=int, default=45)
+parser.add_argument('--num_epochs', type=int, default=40)
 parser.add_argument('--minibatch_size', type=int, default=4096)
 parser.add_argument('--lr', type=float, default=5e-5)
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
-# parser.add_argument('--training_device', type=str, default="cuda:0")
+parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
 parser.add_argument('--evaluation_interval', type=int, default=20)
 parser.add_argument('--evaluation_episodes', type=int, default=200)
@@ -60,9 +63,6 @@ parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
 parser.add_argument('--norm_type', type=str, default='1')
 
-# Env
-parser.add_argument('--agent_radius', type=float, default=0.12)
-
 # run parameters
 # will run each constant for the number of seeds that are provided
 # parser.add_argument('--num_constants', type=int, default=5) # don't go over 
@@ -75,12 +75,11 @@ print("Lipschitz constraint from argparse", args.constrain_lipschitz)
 
 if torch.cuda.is_available():
     device = "cuda:0"
-    print("using_gpu")
 else:
     device = "cpu"
-    print("using_cpu")
 
-args.device = device
+args.vmas_device = device
+args.training_device = device
 print(args)
 
 activation = nn.Tanh
@@ -91,7 +90,9 @@ config = {
     "seed": args.seed,
     "loss":{
         "gamma": args.gamma,
-        "tau": args.tau,
+        "lmbda": args.lmbda,
+        "entropy_eps": args.entropy_eps,
+        "clip_epsilon": args.clip_epsilon,
     },
     "collector": {
          "frames_per_batch": args.frames_per_batch,
@@ -103,9 +104,6 @@ config = {
         # "device": device,
         "device": "cuda:0",
         "n_agents": 2,
-        "scenario": {
-            "agent_radius": args.agent_radius,
-        }
     },
     "model": {
         "shared_parameters": args.shared_parameters,
@@ -151,5 +149,4 @@ for seed in args.seed:
 
     else:
         train(cfg)
-
 

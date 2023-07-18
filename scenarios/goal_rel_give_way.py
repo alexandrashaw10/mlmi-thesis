@@ -13,7 +13,7 @@ from vmas.simulator.utils import Color, TorchUtils
 from vmas.simulator.controllers.velocity_controller import VelocityController
 
 
-class RelGiveWay(BaseScenario):
+class GoalRelGiveWay(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.v_range = kwargs.get("v_range", 0.5)
         self.a_range = kwargs.get("a_range", 1)
@@ -312,23 +312,38 @@ class RelGiveWay(BaseScenario):
         # this line makes it extremely easy for homogeneous to solve it
         # positions.append(agent.goal.state.pos)
         # velocities.append(agent.goal.state.vel)
+        positions.append(agent.goal.state.pos - agent.state.pos)
+        velocities.append(agent.goal.state.vel - agent.state.vel)
         
-        agents_obs = list(chain.from_iterable(zip(positions, velocities)))
-
-        if self.obs_noise > 0:
-            for i, obs in enumerate(agents_obs):
-                noise = torch.zeros(
-                    *obs.shape,
-                    device=self.world.device,
-                ).uniform_(
-                    -self.obs_noise,
-                    self.obs_noise,
-                )
-                agents_obs[i] = obs + noise
-        return torch.cat(
-            agents_obs,
-            dim=-1,
+        agents_obs = torch.cat(
+            list(chain.from_iterable(zip(positions, velocities))),
+            dim=-1
         )
+
+        noise = torch.zeros(
+            *agents_obs.shape,
+            device=self.world.device,
+        ).uniform_(
+            -self.obs_noise,
+            self.obs_noise,
+        )
+
+        return agents_obs + noise
+
+        # if self.obs_noise > 0:
+        #     for i, obs in enumerate(agents_obs):
+        #         noise = torch.zeros(
+        #             *obs.shape,
+        #             device=self.world.device,
+        #         ).uniform_(
+        #             -self.obs_noise,
+        #             self.obs_noise,
+        #         )
+        #         agents_obs[i] = obs + noise
+        # return torch.cat(
+        #     agents_obs,
+        #     dim=-1,
+        # )
 
     def info(self, agent: Agent):
         return {

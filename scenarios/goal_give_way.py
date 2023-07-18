@@ -13,7 +13,7 @@ from vmas.simulator.utils import Color, TorchUtils
 from vmas.simulator.controllers.velocity_controller import VelocityController
 
 
-class RelGiveWay(BaseScenario):
+class GoalGiveWay(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.v_range = kwargs.get("v_range", 0.5)
         self.a_range = kwargs.get("a_range", 1)
@@ -310,8 +310,10 @@ class RelGiveWay(BaseScenario):
         velocities.extend([a.state.vel - agent.state.vel for a in self.world.agents if a is not agent])
 
         # this line makes it extremely easy for homogeneous to solve it
-        # positions.append(agent.goal.state.pos)
-        # velocities.append(agent.goal.state.vel)
+        positions.append(agent.goal.state.pos)
+        velocities.append(agent.goal.state.vel)
+        # positions.append(agent.goal.state.pos - agent.state.pos)
+        # velocities.append(agent.goal.state.vel - agent.state.vel)
         
         agents_obs = list(chain.from_iterable(zip(positions, velocities)))
 
