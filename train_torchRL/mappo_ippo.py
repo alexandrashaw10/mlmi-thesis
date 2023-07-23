@@ -31,6 +31,7 @@ from scenarios.balance import MyBalance
 from scenarios.joint_passage import JointPassage
 from scenarios.transport import Transport
 from scenarios.goal_rel_give_way import GoalRelGiveWay
+from scenarios.left_right import LeftRight
 
 import os
 from os import path
@@ -86,6 +87,8 @@ def return_scenario(name):
         return Transport()
     elif name == "goal_rel_give_way":
         return GoalRelGiveWay()
+    elif name == "left_right":
+        return LeftRight()
     return name
 
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):

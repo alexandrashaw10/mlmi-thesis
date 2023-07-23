@@ -14,9 +14,9 @@ class Transport(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         n_agents = kwargs.get("n_agents", 4)
         self.n_packages = kwargs.get("n_packages", 1)
-        self.package_width = kwargs.get("package_width", 0.15)
-        self.package_length = kwargs.get("package_length", 0.15)
-        self.package_mass = kwargs.get("package_mass", 50)
+        self.package_width = kwargs.get("package_width", 0.3)
+        self.package_length = kwargs.get("package_length", 0.3)
+        self.package_mass = kwargs.get("package_mass", 20)
 
         self.obs_noise = kwargs.get("obs_noise", 0.0)
 
@@ -42,7 +42,7 @@ class Transport(BaseScenario):
                 name=f"package {i}",
                 collide=True,
                 movable=True,
-                mass=50,
+                mass=self.package_mass,
                 shape=Box(length=self.package_length, width=self.package_width),
                 color=Color.RED,
             )
@@ -83,22 +83,38 @@ class Transport(BaseScenario):
             )
             is_overlapping = self.world.is_overlapping(package, package.goal)
 
-            while is_overlapping.any():
-                new_pos = torch.zeros(
-                    (1, self.world.dim_p)
-                    if env_index is not None
-                    else (self.world.batch_dim, self.world.dim_p),
-                    device=self.world.device,
-                    dtype=torch.float32,
-                ).uniform_(
-                    -1.0,
-                    1.0,
-                )
-                package.set_pos(
-                    torch.where(is_overlapping.unsqueeze(-1).expand(new_pos.shape), new_pos, package.state.pos),
-                    batch_index=env_index,
-                )
-                is_overlapping = self.world.is_overlapping(package, package.goal)
+            if env_index is not None:
+                while is_overlapping[env_index].any():
+                    print(f'overlapping {env_index} package')
+                    package.set_pos(
+                        torch.zeros(
+                            (1, self.world.dim_p),
+                            device=self.world.device,
+                            dtype=torch.float32,
+                        ).uniform_(
+                            -1.0,
+                            1.0,
+                        ),
+                        batch_index=env_index,
+                    )
+                    is_overlapping = self.world.is_overlapping(package, package.goal)
+            else:
+                while is_overlapping.any():
+                    print("overlapping package")
+                    new_pos = torch.zeros(
+                        (self.world.batch_dim, self.world.dim_p),
+                        device=self.world.device,
+                        dtype=torch.float32,
+                    ).uniform_(
+                        -1.0,
+                        1.0,
+                    )
+                    package.set_pos(
+                        torch.where(is_overlapping.unsqueeze(-1).expand(new_pos.shape), new_pos, package.state.pos),
+                        batch_index=env_index,
+                    )
+                    is_overlapping = self.world.is_overlapping(package, package.goal)
+                
                 
             package.on_goal = is_overlapping
             if env_index is None:
@@ -116,7 +132,31 @@ class Transport(BaseScenario):
                     * self.shaping_factor
                 )
         for i, agent in enumerate(self.world.agents):
-            # Random pos between -1 and 1
+            # rand_ints = torch.randint(low=0, high=2,
+            #                 size=(1, self.world.dim_p)
+            #                 if env_index is not None
+            #                 else (self.world.batch_dim, self.world.dim_p),
+            #                 device=self.world.device,
+            #                 dtype=torch.float32,
+            #             )
+            # neg_mask = torch.where(rand_ints == 0, -1.0, 1.0,)
+            # uniform_nums = torch.zeros(
+            #         (1, self.world.dim_p)
+            #         if env_index is not None
+            #         else (self.world.batch_dim, self.world.dim_p),
+            #         device=self.world.device,
+            #         dtype=torch.float32,
+            #     ).uniform_(
+            #         0.15, # was 0.725 with small package, then increased size to 0.3, 0.3 and 0.15 radius for generation. then decreased mass to 20
+            #         0.3,
+            #     )
+            # # Random pos between -1 and 1
+            # agent.set_pos(
+            #     neg_mask * uniform_nums + self.packages[0].state.pos[env_index]
+            #     if env_index is not None
+            #     else neg_mask * uniform_nums + self.packages[0].state.pos,
+            #     batch_index=env_index,
+            # )
             agent.set_pos(
                 torch.zeros(
                     (1, self.world.dim_p)
@@ -131,22 +171,47 @@ class Transport(BaseScenario):
                 batch_index=env_index,
             )
             for package in self.packages:
-                while self.world.is_overlapping(
+                is_overlapping = self.world.is_overlapping(
                     agent, package, env_index=env_index
-                ).any():
-                    agent.set_pos(
-                        torch.zeros(
-                            (1, self.world.dim_p)
-                            if env_index is not None
-                            else (self.world.batch_dim, self.world.dim_p),
+                )
+                if env_index is not None:
+                    # is overlapping is empty for some reason?
+                    while is_overlapping[env_index].any():
+                        print(f'overlapping {env_index} agent')
+                        agent.set_pos(
+                            torch.zeros(
+                                (1, self.world.dim_p),
+                                device=self.world.device,
+                                dtype=torch.float32,
+                            ).uniform_(
+                                -1.0,
+                                1.0,
+                            ),
+                            batch_index=env_index,
+                        )
+                        is_overlapping = self.world.is_overlapping(
+                            agent, package, env_index=env_index
+                        )
+                else:
+                    while is_overlapping.any():
+                        print("overlapping agent")
+                        new_pos = torch.zeros(
+                            (self.world.batch_dim, self.world.dim_p),
                             device=self.world.device,
                             dtype=torch.float32,
                         ).uniform_(
                             -1.0,
                             1.0,
-                        ),
-                        batch_index=env_index,
-                    )
+                        )
+
+                        agent.set_pos(
+                            torch.where(is_overlapping.unsqueeze(-1).expand(new_pos.shape), new_pos, agent.state.pos),
+                            batch_index=env_index,
+                        )
+                        is_overlapping = self.world.is_overlapping(
+                            agent, package, env_index=env_index
+                        )
+                
 
     def reward(self, agent: Agent):
         is_first = agent == self.world.agents[0]
