@@ -29,7 +29,7 @@ from torchrl.record.loggers.wandb import WandbLogger
 from evaluate.distance_metrics import *
 from evaluate.evaluate_model import TorchDiagGaussian
 # from models.fcnet import MyFullyConnectedNetwork
-from models.gppo import GPPO
+# from models.gppo import GPPO
 from rllib_differentiable_comms.multi_action_dist import (
     TorchHomogeneousMultiActionDistribution,
 )
