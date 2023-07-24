@@ -5,12 +5,11 @@ import math
 from typing import Dict
 
 import numpy as np
-from itertools import chain
 import torch
 from torch import Tensor
 
 from vmas import render_interactively
-from vmas.simulator.core import Agent, World
+from vmas.simulator.core import Agent, World, Landmark, Sphere
 from vmas.simulator.scenario import BaseScenario
 from vmas.simulator.utils import Color, Y
 
@@ -19,12 +18,13 @@ class LeftRight(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.green_mass = kwargs.get("green_mass", 2)
         self.blue_mass = kwargs.get("blue_mass", 2)
-        self.spawn_distance = kwargs.get("spawn_dist", 0.0)
+        self.spawn_dist = kwargs.get("spawn_dist", 0.0)
         self.mass_noise = kwargs.get("mass_noise", 0)
         self.obs_noise = kwargs.get("obs_noise", 0.0)
+        self.horizontal_sep = kwargs.get("horizontal_sep", False)
 
         self.pos_shaping_factor = kwargs.get("pos_shaping_factor", 1.0)
-        self.final_reward = kwargs.get("final_reward", 0.01)
+        self.final_reward = kwargs.get("final_reward", 0.1)
 
         # was originally 1
         self.plot_grid = False
@@ -40,6 +40,7 @@ class LeftRight(BaseScenario):
             color=Color.GREEN,
             render_action=True,
             mass=self.green_mass,
+            shape=Sphere(0.15),
         )
         world.add_agent(self.green_agent)
         self.blue_agent = Agent(
@@ -48,34 +49,33 @@ class LeftRight(BaseScenario):
             color=Color.BLUE,
             render_action=True,
             mass=self.blue_mass,
+            shape=Sphere(0.15),
         )
         world.add_agent(self.blue_agent)
 
         green_goal = Landmark(
             name="green_goal",
             collide=False,
-            shape=Sphere(radius=0.15),
+            shape=Sphere(radius=0.05),
             color=Color.LIGHT_GREEN,
         )
+        self.green_agent.goal = green_goal
+        world.add_landmark(green_goal)
+        self.green_goal = green_goal
 
         blue_goal = Landmark(
             name="blue_goal",
             collide=False,
-            shape=Sphere(radius=0.15),
-            color=LIGHT_BLUE,
+            shape=Sphere(radius=0.05),
+            color=Color.LIGHT_GREEN,
         )
-        world.add_landmark(blue_goal)
-        world.add_landmark(green_goal)
-        self.blue_goal = [blue_goal, green_goal]
-
         self.blue_agent.goal = blue_goal
-        self.green_agent.goal = green_goal
+        world.add_landmark(blue_goal)
         self.blue_goal = blue_goal
-        self.green_goal = green_goal
 
         self.pos_rew = torch.zeros(batch_dim, device=device)
         self.final_rew = self.pos_rew.clone()
-        self.goal_reached = self.pos_rew.clone().to(torch.bool)
+        self.goal_reached = torch.zeros(batch_dim, device=device).to(torch.bool)
 
         return world
 
@@ -87,15 +87,76 @@ class LeftRight(BaseScenario):
             -self.mass_noise, self.mass_noise
         )
 
-        for agent in self.world.agents:
-            agent.set_pos(
-                torch.zeros(
-                    (1, self.world.dim_p)
+        if self.horizontal_sep:
+            self.green_agent.set_pos(
+                torch.cat([torch.full(
+                    (1, 1)
                     if env_index is not None
-                    else (self.world.batch_dim, self.world.dim_p),
+                    else (self.world.batch_dim, 1),
+                    fill_value=torch.mul(self.spawn_dist, -1),
                     device=self.world.device,
                     dtype=torch.float32,
-                ),
+                ), torch.zeros(
+                    (1, self.world.dim_p - 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, self.world.dim_p - 1),
+                    device=self.world.device,
+                    dtype=torch.float32,
+                )], dim=-1),
+                batch_index=env_index,
+            )
+        
+            self.blue_agent.set_pos(
+                torch.cat([torch.full(
+                    (1, 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, 1),
+                    fill_value=self.spawn_dist,
+                    device=self.world.device,
+                    dtype=torch.float32,
+                ), torch.zeros(
+                    (1, self.world.dim_p - 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, self.world.dim_p - 1),
+                    device=self.world.device,
+                    dtype=torch.float32,
+                )], dim=-1),
+                batch_index=env_index,
+            )
+        else:
+            self.green_agent.set_pos(
+                torch.cat([torch.zeros(
+                    (1, self.world.dim_p - 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, self.world.dim_p - 1),
+                    device=self.world.device,
+                    dtype=torch.float32,
+                ), torch.full(
+                    (1, 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, 1),
+                    fill_value=torch.mul(self.spawn_dist, -1),
+                    device=self.world.device,
+                    dtype=torch.float32,
+                )], dim=-1),
+                batch_index=env_index,
+            )
+        
+            self.blue_agent.set_pos(
+                torch.cat([torch.zeros(
+                    (1, self.world.dim_p - 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, self.world.dim_p - 1),
+                    device=self.world.device,
+                    dtype=torch.float32,
+                ), torch.full(
+                    (1, 1)
+                    if env_index is not None
+                    else (self.world.batch_dim, 1),
+                    fill_value=self.spawn_dist,
+                    device=self.world.device,
+                    dtype=torch.float32,
+                )], dim=-1),
                 batch_index=env_index,
             )
 
@@ -133,28 +194,39 @@ class LeftRight(BaseScenario):
             batch_index=env_index,
         )
 
-        if env_index is not None:
-          self.rew[env_index] = 0
-          self.goal_reached[env_index] = False
-          self.on_goal[env_index] = torch.zeros(2,
-            device=self.world.device, 
-            dtype=torch.float32
-          ).to(torch.bool)
-        else:
-          self.rew = torch.zeros(
-              self.world.batch_dim, device=self.world.device, dtype=torch.float32
-          )
-          self.goal_reached = torch.zeros(
-              self.world.batch_dim, device=self.world.device
-          ).to(torch.bool)
+        for agent in self.world.agents:
+            if env_index is None:
+                agent.shaping = (
+                    torch.linalg.vector_norm(
+                        agent.state.pos - agent.goal.state.pos, dim=1
+                    )
+                    * self.pos_shaping_factor
+                )
+            else:
+                agent.shaping[env_index] = (
+                    torch.linalg.vector_norm(
+                        agent.state.pos[env_index] - agent.goal.state.pos[env_index]
+                    )
+                    * self.pos_shaping_factor
+                )
 
-    def process_action(self, agent: Agent):
-        agent.action.u[:, Y] = 0
+        if env_index is None:
+            self.goal_reached = torch.zeros(
+                (self.world.batch_dim,), device=self.world.device
+            ).to(torch.bool)
+        else:
+            self.goal_reached[env_index] = False
+
+    # def process_action(self, agent: Agent):
+    #     agent.action.u[:, Y] = 0
 
     def reward(self, agent: Agent):
         is_first = agent == self.world.agents[0] # why is the reward only for the first agent?
 
         if is_first:
+            self.final_rew = torch.zeros(
+                self.world.batch_dim, device=self.world.device, dtype=torch.float32
+            )
             blue_agent = self.blue_agent
             green_agent = self.green_agent
             self.blue_distance = torch.linalg.vector_norm(
@@ -170,16 +242,16 @@ class LeftRight(BaseScenario):
             self.goal_reached = self.green_on_goal * self.blue_on_goal
 
             green_shaping = self.green_distance * self.pos_shaping_factor
-            self.green_rew = green_shaping
-            # self.green_rew = green_agent.shaping - green_shaping
-            # green_agent.shaping = green_shaping
+            # self.green_rew = green_shaping
+            self.green_rew = green_agent.shaping - green_shaping
+            green_agent.shaping = green_shaping
 
             blue_shaping = self.blue_distance * self.pos_shaping_factor
-            self.blue_rew = blue_shaping
-            # self.blue_rew = self.blue_agent.shaping - blue_shaping
-            # blue_agent.shaping = blue_shaping
+            # self.blue_rew = blue_shaping
+            self.blue_rew = self.blue_agent.shaping - blue_shaping
+            blue_agent.shaping = blue_shaping
 
-            self.pos_rew += self.blue_rew + self.green_rew
+            self.pos_rew = self.blue_rew + self.green_rew
 
             self.final_rew[self.goal_reached] = self.final_reward
 
@@ -188,25 +260,21 @@ class LeftRight(BaseScenario):
     def observation(self, agent: Agent):
         # pass in the position and velocity of all of the other agents as well
         # so that its pos_curr_agent, vel_curr_agent, pos0, vel0, ...
-        positions = [agent.state.pos]
-        velocities = [agent.state.vel]
-        positions.extend([a.state.pos - agent.state.pos for a in self.world.agents if a is not agent])
-        velocities.extend([a.state.vel - agent.state.vel for a in self.world.agents if a is not agent])
+        obs = [agent.state.pos, agent.state.vel]
 
-        agents = list(chain.from_iterable(zip(positions, velocities)))
+        obs = torch.cat(obs, dim=-1)
 
         if self.obs_noise > 0:
-            for i, obs in enumerate(agents):
-                noise = torch.zeros(
-                    *obs.shape,
-                    device=self.world.device,
-                ).uniform_(
-                    -self.obs_noise,
-                    self.obs_noise,
-                )
-                agents[i] = obs + noise
+            noise = torch.zeros(
+                *obs.shape,
+                device=self.world.device,
+            ).uniform_(
+                -self.obs_noise,
+                self.obs_noise,
+            )
+            obs = obs + noise
 
-        return torch.cat(agents, dim=-1)
+        return obs
 
     def info(self, agent: Agent) -> Dict[str, Tensor]:
         return {
@@ -214,10 +282,4 @@ class LeftRight(BaseScenario):
         }
 
 if __name__ == "__main__":
-    render_interactively(
-        __file__,
-        n_agents=3,
-        package_mass=5,
-        random_package_pos_on_line=True,
-        control_two_agents=True,
-    )
+    render_interactively(__file__, control_two_agents=True)
