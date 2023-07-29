@@ -34,8 +34,12 @@ from logging_utils_new import init_logging, log_evaluation, log_training
 from scenarios.simplified_het_mass import SimplifiedHetMass
 from scenarios.simple_give_way import SimpleGiveWay
 from scenarios.rel_give_way import RelGiveWay
+from scenarios.goal_give_way import GoalGiveWay
 from scenarios.balance import MyBalance
 from scenarios.joint_passage import JointPassage
+from scenarios.transport import Transport
+from scenarios.goal_rel_give_way import GoalRelGiveWay
+from scenarios.left_right import LeftRight
 
 def rendering_callback(env, td):
     env.frames.append(env.render(mode="rgb_array", agent_index_focus=None))
@@ -51,7 +55,14 @@ def return_scenario(name):
         return MyBalance()
     elif name == "joint_passage":
         return JointPassage()
-    
+    elif name == "goal_give_way":
+        return GoalGiveWay()
+    elif name == "transport":
+        return Transport()
+    elif name == "goal_rel_give_way":
+        return GoalRelGiveWay()
+    elif name == "left_right":
+        return LeftRight()
     return name
 
 class SaveBestModel:

@@ -41,7 +41,7 @@ class MultiAgentMLP(nn.Module):
                     depth=depth,
                     num_cells=num_cells,
                     activation_class=activation_class,
-                    groupsort_n_groups=groupsort_n_groups,
+                    groupsort_n_groups=int(groupsort_n_groups),
                     device=device,
                     lip_constrained=lip_constrained,
                     sigma=sigma,

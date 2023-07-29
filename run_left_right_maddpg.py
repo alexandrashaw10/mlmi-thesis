@@ -3,6 +3,8 @@ import time
 import torch
 import wandb
 
+from dotmap import DotMap
+
 from models.lip_multiagent_mlp import LipNormedMultiAgentMLP
 
 from tensordict.nn import TensorDictModule
@@ -23,28 +25,25 @@ from monotonenorm import GroupSort
 import argparse
 
 # train this run using MAPPO and HetMAPPO
-from train_torchRL.mappo_ippo import trainMAPPO_IPPO
+from train_torchRL.maddpg_iddpg import train
 
-parser = argparse.ArgumentParser(description = 'Running Rel Give Way Test')
+parser = argparse.ArgumentParser(description = 'Running Left Right')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9) 
 parser.add_argument('--seed', nargs='+', type=int, default=0) # for list of seeds
-# PPO
-parser.add_argument('--lmbda', type=float, default=0.9)
-parser.add_argument('--entropy_eps', type=float, default=0.0)
-parser.add_argument('--clip_epsilon', type=float, default=0.2)
+# DDPG
+parser.add_argument('--tau', type=float, default=0.005) 
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
 parser.add_argument('--max_steps', type=int, default=300)
 parser.add_argument('--n_iters', type=int, default=400)
-parser.add_argument('--vmas_device', type=str, default="cuda:0")
+parser.add_argument('--device', type=str, default="cuda:0")
 # Training
 parser.add_argument('--num_epochs', type=int, default=40)
 parser.add_argument('--minibatch_size', type=int, default=4096)
 parser.add_argument('--lr', type=float, default=5e-5)
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
-parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
 parser.add_argument('--evaluation_interval', type=int, default=20)
 parser.add_argument('--evaluation_episodes', type=int, default=200)
@@ -55,14 +54,15 @@ parser.add_argument('--centralised_critic', type=bool, default=False) # MAPPO if
 parser.add_argument('--MLP_activation') # TanH may not be suitable for this model, as we might need GroupSort, doesn't accept the type of nn.Module
 parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
 parser.add_argument('--lip_sigma', type=float, nargs='*', default=float('inf'))
-parser.add_argument('--groupsort_n_groups', type=str, default="Full")
+parser.add_argument('--groupsort_n_groups', type=int, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
 parser.add_argument('--norm_type', type=str, default='1')
 
-# Env
-parser.add_argument('--agent_radius', type=float, default=0.12)
+#Scenario
+parser.add_argument('--spawn_dist', type=float, default=0.0)
+parser.add_argument('--horizontal_sep', type=bool, default=False)
 
 # run parameters
 # will run each constant for the number of seeds that are provided
@@ -76,11 +76,12 @@ print("Lipschitz constraint from argparse", args.constrain_lipschitz)
 
 if torch.cuda.is_available():
     device = "cuda:0"
+    print("using_gpu")
 else:
     device = "cpu"
+    print("using_cpu")
 
-args.vmas_device = device
-args.training_device = device
+args.device = device
 print(args)
 
 activation = nn.Tanh
@@ -88,67 +89,67 @@ if args.MLP_activation == "GroupSort":
     activation = GroupSort
 
 config = {
-    # RL
-    "gamma": args.gamma, #args.gamma,
-    "seed": args.seed, #args.seed,
-    # PPO
-    "lmbda": args.lmbda, # args.lmbda,
-    "entropy_eps": args.entropy_eps,#args.entropy_eps,
-    "clip_epsilon": args.clip_epsilon,#args.clip_epsilon,
-    # Sampling
-    "frames_per_batch": args.frames_per_batch, #args.frames_per_batch,
-    "max_steps": args.max_steps,
-    "vmas_envs": args.frames_per_batch // args.max_steps, # args.frames_per_batch // args.max_steps,
-    "n_iters": args.n_iters, # args.n_iters,
-    "total_frames": args.frames_per_batch * args.n_iters, #args.frames_per_batch * args.n_iters,
-    "memory_size": args.frames_per_batch, # args.frames_per_batch,
-    "vmas_device": device, #args.vmas_device,
-    # Training
-    "num_epochs": args.num_epochs, #args.num_epochs, # optimization steps per batch of data collected
-    "minibatch_size": args.minibatch_size, #args.minibatch_size, # size of minibatches used in each epoch
-    "lr": args.lr, #args.lr,
-    "max_grad_norm": args.max_grad_norm,# args.max_grad_norm,
-    "training_device": device, #args.vmas_device,
-    # Evaluation
-    "evaluation_interval": args.evaluation_interval, # args.evaluation_interval,
-    "evaluation_episodes": args.evaluation_episodes, # args.evaluation_episodes, # number of episodes to use during evaluation
-}
-
-model_config = {
-    "shared_parameters": args.shared_parameters, # True = homogeneous, False = Heterogeneous
-    "centralised_critic": args.centralised_critic, # args.centralised_critic, # MAPPO if True, IPPO if False (if full information use False)
-    "MLP_activation": activation, # TanH may not be suitable for this model, as we might need GroupSort
-    "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
-    "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
-    "mlp_hidden_params": args.mlp_hidden_params,
-    "groupsort_n_groups": args.groupsort_n_groups,
-    "mlp_depth": args.mlp_depth,
-    "constrain_critic": False,
-    "norm_type": args.norm_type,
-}
-
-env_config = {
-    # Scenario
-    "scenario_name": "rel_give_way",
-    "n_agents": 2,
-    "agent_radius": args.agent_radius,
+    "seed": args.seed,
+    "loss":{
+        "gamma": args.gamma,
+        "tau": args.tau,
+    },
+    "collector": {
+         "frames_per_batch": args.frames_per_batch,
+         "n_iters": args.n_iters,
+    },
+    "env": {
+        "max_steps": args.max_steps,
+        "scenario_name": "left_right",
+        # "device": device,
+        "device": "cuda:0",
+        "n_agents": 2,
+        "scenario": {
+            "spawn_dist": args.spawn_dist,
+            "horizontal_sep": args.horizontal_sep
+        }
+    },
+    "model": {
+        "shared_parameters": args.shared_parameters,
+        "centralised_critic": args.centralised_critic, # args.centralised_critic, # MADDPG if True, IDDPG if False (if full information use False)
+        "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
+        "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
+        "mlp_hidden_params": args.mlp_hidden_params,
+        "groupsort_n_groups": args.groupsort_n_groups,
+        "mlp_depth": args.mlp_depth,
+        "constrain_critic": False,
+        "norm_type": args.norm_type,
+        "MLP_activation": activation,
+    },
+    "train": {
+        "device": "cuda:0",
+        "minibatch_size": args.minibatch_size,
+        "lr": args.lr,
+        "num_epochs": args.num_epochs,
+        "max_grad_norm": args.max_grad_norm,
+    },
+    "eval": {
+        "evaluation_interval": args.evaluation_interval, # args.evaluation_interval,
+        "evaluation_episodes": args.evaluation_episodes, # args.evaluation_episodes, # number of episodes to use during evaluation
+    },
+    "logger": {
+        "backend": "wandb",
+    }
 }
 
 print(config)
-print(model_config)
-print(env_config)
+
+cfg = DotMap(config)
 
 for seed in args.seed:
     torch.manual_seed(seed)
     # update config with new seed
-    config.update({"seed": seed})
-    if model_config['constrain_lipschitz']:
+    cfg.seed = seed
+    if cfg.model.constrain_lipschitz:
         for lip_constant in args.lip_sigma:
             # update config with new lipschitz constraint
-            model_config.update({"lip_sigma": lip_constant})
-            trainMAPPO_IPPO(seed, config, model_config, env_config, log=True)
+            cfg.model.lip_sigma = lip_constant
+            train(cfg)
 
     else:
-        trainMAPPO_IPPO(seed, config, model_config, env_config, log=True)
-
-
+        train(cfg)

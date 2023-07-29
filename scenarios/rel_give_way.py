@@ -83,7 +83,7 @@ class RelGiveWay(BaseScenario):
         blue_goal = Landmark(
             name="blue goal",
             collide=False,
-            shape=Sphere(radius=self.agent_radius / 2),
+            shape=Sphere(radius=self.agent_radius),
             color=Color.BLUE,
         )
         blue_agent.goal = blue_goal
@@ -110,7 +110,7 @@ class RelGiveWay(BaseScenario):
         green_goal = Landmark(
             name="green goal",
             collide=False,
-            shape=Sphere(radius=self.agent_radius / 2),
+            shape=Sphere(radius=self.agent_radius),
             color=Color.GREEN,
         )
         green_agent.goal = green_goal

@@ -61,7 +61,7 @@ class LipNormedMLP(nn.Module):
 
         def create_activation_instance():
             if activation_class is GroupSort:
-                return GroupSort(groupsort_n_groups)
+                return GroupSort(num_cells)
             return activation_class()
 
         # lipschitz constraints are added to the linear layer forward pre-hook 
