@@ -279,6 +279,8 @@ class LeftRight(BaseScenario):
     def info(self, agent: Agent) -> Dict[str, Tensor]:
         return {
             "success": self.goal_reached,
+            "pos_rew": self.pos_rew,
+            "final_rew": self.final_rew,
         }
 
 if __name__ == "__main__":
