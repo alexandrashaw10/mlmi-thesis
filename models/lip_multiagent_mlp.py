@@ -24,7 +24,7 @@ class LipNormedMultiAgentMLP(nn.Module):
         activation_class, # try with GroupSort and with tanh
         lip_constrained=False,
         sigma=1.0,
-        groupsort_n_groups=8,
+        groupsort_n_groups="8",
         norm_type='1',
     ):
         super().__init__()

@@ -25,25 +25,24 @@ import argparse
 # train this run using MAPPO and HetMAPPO
 from train_torchRL.mappo_ippo import trainMAPPO_IPPO
 
-parser = argparse.ArgumentParser(description = 'Running Het Mass Test')
+parser = argparse.ArgumentParser(description = 'Running Left Right')
 
 # RL
 parser.add_argument('--gamma', type=float, default=0.9) 
 parser.add_argument('--seed', nargs='+', type=int, default=0) # for list of seeds
-# parser.add_argument('--seed', type=int, default=0)
 # PPO
 parser.add_argument('--lmbda', type=float, default=0.9)
-parser.add_argument('--entropy_eps', type=int, default=0)
+parser.add_argument('--entropy_eps', type=float, default=0.0)
 parser.add_argument('--clip_epsilon', type=float, default=0.2)
 # Sampling
 parser.add_argument('--frames_per_batch', type=int, default=60_000)
-parser.add_argument('--max_steps', type=int, default=100)
-parser.add_argument('--n_iters', type=int, default=500)
+parser.add_argument('--max_steps', type=int, default=300)
+parser.add_argument('--n_iters', type=int, default=400)
 parser.add_argument('--vmas_device', type=str, default="cuda:0")
 # Training
-parser.add_argument('--num_epochs', type=int, default=25)
+parser.add_argument('--num_epochs', type=int, default=40)
 parser.add_argument('--minibatch_size', type=int, default=4096)
-parser.add_argument('--lr', type=float, default=5e-5) 
+parser.add_argument('--lr', type=float, default=5e-5)
 parser.add_argument('--max_grad_norm', type=float, default=40.0)
 parser.add_argument('--training_device', type=str, default="cuda:0")
 # Evaluation
@@ -55,18 +54,16 @@ parser.add_argument('--shared_parameters', type=bool, default=False) # True = ho
 parser.add_argument('--centralised_critic', type=bool, default=False) # MAPPO if True, IPPO if False, use False if using full information
 parser.add_argument('--MLP_activation') # TanH may not be suitable for this model, as we might need GroupSort, doesn't accept the type of nn.Module
 parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
-parser.add_argument('--lip_sigma', type=float, nargs='*', default=1.0)
-parser.add_argument('--groupsort_n_groups', type=str, default="8")
+parser.add_argument('--lip_sigma', type=float, nargs='*', default=float('inf'))
+parser.add_argument('--groupsort_n_groups', type=str, default="Full")
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
 parser.add_argument('--norm_type', type=str, default='1')
 
-# scenario args
-parser.add_argument('--green_mass', type=float, default=4.0)
-parser.add_argument('--blue_mass', type=float, default=2.0)
-parser.add_argument('--spawn_noise', type=float, default=1.0)
-parser.add_argument('--mass_noise', type=float, default=0.5)
+#Scenario
+parser.add_argument('--spawn_dist', type=float, default=0.0)
+parser.add_argument('--horizontal_sep', type=bool, default=False)
 
 # run parameters
 # will run each constant for the number of seeds that are provided
@@ -90,6 +87,8 @@ print(args)
 activation = nn.Tanh
 if args.MLP_activation == "GroupSort":
     activation = GroupSort
+
+
 
 config = {
     # RL
@@ -120,12 +119,12 @@ config = {
 
 model_config = {
     "shared_parameters": args.shared_parameters, # True = homogeneous, False = Heterogeneous
-    "centralised_critic": True, # args.centralised_critic, # MAPPO if True, IPPO if False
+    "centralised_critic": args.centralised_critic, # args.centralised_critic, # MAPPO if True, IPPO if False (if full information use False)
     "MLP_activation": activation, # TanH may not be suitable for this model, as we might need GroupSort
     "constrain_lipschitz": args.constrain_lipschitz, #args.constrain_lipschitz,  # constrain the lipschitz constraint so that we can test if it runs
     "lip_sigma": 1.0, #args.lip_sigma, # will be overwritten by the constraints
-    "mlp_hidden_params": args.mlp_hidden_params, #args.mlp_hidden_params,
-    "groupsort_n_groups": 8, #args.groupsort_n_groups,
+    "mlp_hidden_params": args.mlp_hidden_params,
+    "groupsort_n_groups": args.groupsort_n_groups,
     "mlp_depth": args.mlp_depth,
     "constrain_critic": False,
     "norm_type": args.norm_type,
@@ -133,13 +132,12 @@ model_config = {
 
 env_config = {
     # Scenario
-    "scenario_name": "simplified_het_mass",
+    "scenario_name": "left_right_v2",
     "n_agents": 2,
-    "blue_mass": args.blue_mass,
-    "green_mass": args.green_mass,
-    "mass_noise": args.mass_noise,
-    "spawn_noise": args.spawn_noise,
+    "spawn_dist": args.spawn_dist,
+    "horizontal_sep": args.horizontal_sep
 }
+
 
 print(config)
 print(model_config)

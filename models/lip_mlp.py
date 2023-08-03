@@ -16,7 +16,7 @@ class LipNormedMLP(nn.Module):
                  depth: int, num_cells: int, 
                  activation_class: nn.Module, device: torch.device | str | int | None = None,
                  lip_constrained: bool = False, sigma: float | None = None, always_norm: bool = False,
-                 groupsort_n_groups: int | None = 4, norm_type: str = '1'):
+                 groupsort_n_groups: str | None = "8", norm_type: str = '1'):
         super().__init__()
 
         if lip_constrained:
@@ -61,7 +61,10 @@ class LipNormedMLP(nn.Module):
 
         def create_activation_instance():
             if activation_class is GroupSort:
-                return GroupSort(num_cells)
+                if groupsort_n_groups == "Full":
+                    return GroupSort(num_cells)
+                else:
+                    return GroupSort(int(groupsort_n_groups))
             return activation_class()
 
         # lipschitz constraints are added to the linear layer forward pre-hook 

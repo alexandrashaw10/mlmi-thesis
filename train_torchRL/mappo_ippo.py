@@ -32,6 +32,7 @@ from scenarios.joint_passage import JointPassage
 from scenarios.transport import Transport
 from scenarios.goal_rel_give_way import GoalRelGiveWay
 from scenarios.left_right import LeftRight
+from scenarios.left_right_v2 import LeftRightV2
 
 import os
 from os import path
@@ -89,6 +90,10 @@ def return_scenario(name):
         return GoalRelGiveWay()
     elif name == "left_right":
         return LeftRight()
+    elif name == "left_right_v2":
+        return LeftRightV2()
+    elif name == "simplified_het_mass_nosep":
+        return SimplifiedHetMassNoSep()
     return name
 
 def trainMAPPO_IPPO(seed, config, model_config, env_config, log=True):

@@ -14,7 +14,7 @@ from vmas.simulator.scenario import BaseScenario
 from vmas.simulator.utils import Color, Y
 
 # every class called "Scenario" to make it easy to load
-class LeftRight(BaseScenario):
+class LeftRightV2(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs):
         self.green_mass = kwargs.get("green_mass", 2)
         self.blue_mass = kwargs.get("blue_mass", 2)
@@ -196,14 +196,14 @@ class LeftRight(BaseScenario):
 
         for agent in self.world.agents:
             if env_index is None:
-                agent.shaping = (
+                agent.orig_dist_to_goal = (
                     torch.linalg.vector_norm(
                         agent.state.pos - agent.goal.state.pos, dim=1
                     )
                     * self.pos_shaping_factor
                 )
             else:
-                agent.shaping[env_index] = (
+                agent.orig_dist_to_goal[env_index] = (
                     torch.linalg.vector_norm(
                         agent.state.pos[env_index] - agent.goal.state.pos[env_index]
                     )
@@ -214,8 +214,16 @@ class LeftRight(BaseScenario):
             self.goal_reached = torch.zeros(
                 (self.world.batch_dim,), device=self.world.device
             ).to(torch.bool)
+            self.green_rew = torch.zeros(
+                (self.world.batch_dim,), device=self.world.device
+            )
+            self.blue_rew = torch.zeros(
+                (self.world.batch_dim,), device=self.world.device
+            )
         else:
             self.goal_reached[env_index] = False
+            self.green_rew[env_index] = 0
+            self.blue_rew[env_index] = 0
 
     # def process_action(self, agent: Agent):
     #     agent.action.u[:, Y] = 0
@@ -243,13 +251,10 @@ class LeftRight(BaseScenario):
 
             green_shaping = self.green_distance * self.pos_shaping_factor
             # self.green_rew = green_shaping
-            self.green_rew = green_agent.shaping - green_shaping
-            green_agent.shaping = green_shaping
+            self.green_rew = -1 * green_shaping
 
             blue_shaping = self.blue_distance * self.pos_shaping_factor
-            # self.blue_rew = blue_shaping
-            self.blue_rew = self.blue_agent.shaping - blue_shaping
-            blue_agent.shaping = blue_shaping
+            self.blue_rew = -1 * blue_shaping
 
             self.pos_rew = self.blue_rew + self.green_rew
 
@@ -281,7 +286,6 @@ class LeftRight(BaseScenario):
             "success": self.goal_reached,
             "pos_rew": self.pos_rew,
             "final_rew": self.final_rew,
+            "blue_rew": self.blue_rew,
+            "green_rew": self.green_rew,
         }
-
-if __name__ == "__main__":
-    render_interactively(__file__, control_two_agents=True)

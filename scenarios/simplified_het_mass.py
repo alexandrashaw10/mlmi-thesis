@@ -21,6 +21,7 @@ class SimplifiedHetMass(BaseScenario):
         self.blue_mass = kwargs.get("blue_mass", 2)
         self.mass_noise = kwargs.get("mass_noise", 0.5) # why would I want mass noise - keeping for now but want to try with and without, right now setting to 0
         self.obs_noise = kwargs.get("obs_noise", 0.0)
+        self.spawn_noise = kwargs.get("spawn_noise", 1)
         # was originally 1
         self.plot_grid = True
 
@@ -60,17 +61,30 @@ class SimplifiedHetMass(BaseScenario):
             -self.mass_noise, self.mass_noise
         )
 
-        for agent in self.world.agents:
-            agent.set_pos(
-                torch.zeros(
-                    (1, self.world.dim_p)
-                    if env_index is not None
-                    else (self.world.batch_dim, self.world.dim_p),
-                    device=self.world.device,
-                    dtype=torch.float32,
-                ).uniform_(-1, 1), # why do I want to uniform give them different positions ?
-                batch_index=env_index,
-            )
+        if self.spawn_noise < 1e-3:
+            for agent in self.world.agents:
+                agent.set_pos(
+                    torch.zeros(
+                        (1, self.world.dim_p)
+                        if env_index is not None
+                        else (self.world.batch_dim, self.world.dim_p),
+                        device=self.world.device,
+                        dtype=torch.float32,
+                    ).uniform_(-1 * self.spawn_noise, self.spawn_noise), # why do I want to uniform give them different positions ?
+                    batch_index=env_index,
+                )
+        else:
+            for agent in self.world.agents:
+                agent.set_pos(
+                    torch.zeros(
+                        (1, self.world.dim_p)
+                        if env_index is not None
+                        else (self.world.batch_dim, self.world.dim_p),
+                        device=self.world.device,
+                        dtype=torch.float32,
+                    ), #.uniform_(-1, 1), # why do I want to uniform give them different positions ?
+                    batch_index=env_index,
+                )
 
     def process_action(self, agent: Agent):
         agent.action.u[:, Y] = 0
