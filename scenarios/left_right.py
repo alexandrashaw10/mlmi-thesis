@@ -210,31 +210,75 @@ class LeftRight(BaseScenario):
                     * self.pos_shaping_factor
                 )
 
+        # if env_index is None:
+        #     self.goal_reached = torch.zeros(
+        #         (self.world.batch_dim,), device=self.world.device
+        #     ).to(torch.bool)
+        # else:
+        #     self.goal_reached[env_index] = False
         if env_index is None:
-            self.goal_reached = torch.zeros(
-                (self.world.batch_dim,), device=self.world.device
-            ).to(torch.bool)
+            self.goal_reached = torch.full(
+                (self.world.batch_dim,), False, device=self.world.device
+            )
         else:
             self.goal_reached[env_index] = False
 
     # def process_action(self, agent: Agent):
     #     agent.action.u[:, Y] = 0
 
+    # def reward(self, agent: Agent):
+    #     is_first = agent == self.world.agents[0] # why is the reward only for the first agent?
+
+    #     if is_first:
+    #         self.final_rew = torch.zeros(
+    #             self.world.batch_dim, device=self.world.device, dtype=torch.float32
+    #         )
+    #         blue_agent = self.blue_agent
+    #         green_agent = self.green_agent
+    #         self.blue_distance = torch.linalg.vector_norm(
+    #             torch.sub(blue_agent.state.pos, blue_agent.goal.state.pos),
+    #             dim=1,
+    #         )
+    #         self.green_distance = torch.linalg.vector_norm(
+    #             torch.sub(green_agent.state.pos, green_agent.goal.state.pos),
+    #             dim=1,
+    #         )
+    #         self.blue_on_goal = self.blue_distance < blue_agent.goal.shape.radius
+    #         self.green_on_goal = self.green_distance < green_agent.goal.shape.radius
+    #         self.goal_reached = self.green_on_goal * self.blue_on_goal
+
+    #         green_shaping = self.green_distance * self.pos_shaping_factor
+    #         # self.green_rew = green_shaping
+    #         self.green_rew = green_agent.shaping - green_shaping
+    #         green_agent.shaping = green_shaping
+
+    #         blue_shaping = self.blue_distance * self.pos_shaping_factor
+    #         # self.blue_rew = blue_shaping
+    #         self.blue_rew = self.blue_agent.shaping - blue_shaping
+    #         blue_agent.shaping = blue_shaping
+
+    #         self.pos_rew = self.blue_rew + self.green_rew
+
+    #         self.final_rew[self.goal_reached] = self.final_reward
+
+    #     return self.pos_rew + self.final_rew
+
     def reward(self, agent: Agent):
-        is_first = agent == self.world.agents[0] # why is the reward only for the first agent?
+        is_first = agent == self.world.agents[0]
+
+        blue_agent = self.world.agents[0]
+        green_agent = self.world.agents[-1]
 
         if is_first:
-            self.final_rew = torch.zeros(
-                self.world.batch_dim, device=self.world.device, dtype=torch.float32
-            )
-            blue_agent = self.blue_agent
-            green_agent = self.green_agent
+            self.pos_rew[:] = 0
+            self.final_rew[:] = 0
+
             self.blue_distance = torch.linalg.vector_norm(
-                torch.sub(blue_agent.state.pos, blue_agent.goal.state.pos),
+                blue_agent.state.pos - blue_agent.goal.state.pos,
                 dim=1,
             )
             self.green_distance = torch.linalg.vector_norm(
-                torch.sub(green_agent.state.pos, green_agent.goal.state.pos),
+                green_agent.state.pos - green_agent.goal.state.pos,
                 dim=1,
             )
             self.blue_on_goal = self.blue_distance < blue_agent.goal.shape.radius
@@ -242,19 +286,17 @@ class LeftRight(BaseScenario):
             self.goal_reached = self.green_on_goal * self.blue_on_goal
 
             green_shaping = self.green_distance * self.pos_shaping_factor
-            # self.green_rew = green_shaping
             self.green_rew = green_agent.shaping - green_shaping
             green_agent.shaping = green_shaping
 
             blue_shaping = self.blue_distance * self.pos_shaping_factor
-            # self.blue_rew = blue_shaping
-            self.blue_rew = self.blue_agent.shaping - blue_shaping
+            self.blue_rew = blue_agent.shaping - blue_shaping
             blue_agent.shaping = blue_shaping
 
-            self.pos_rew = self.blue_rew + self.green_rew
+            self.pos_rew += self.blue_rew
+            self.pos_rew += self.green_rew
 
             self.final_rew[self.goal_reached] = self.final_reward
-
         return self.pos_rew + self.final_rew
 
     def observation(self, agent: Agent):

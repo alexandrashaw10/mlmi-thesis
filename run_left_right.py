@@ -55,7 +55,7 @@ parser.add_argument('--centralised_critic', type=bool, default=False) # MAPPO if
 parser.add_argument('--MLP_activation') # TanH may not be suitable for this model, as we might need GroupSort, doesn't accept the type of nn.Module
 parser.add_argument('--constrain_lipschitz', type=bool, default=False) # constrain the lipschitz constraint so that we can test if it runs
 parser.add_argument('--lip_sigma', type=float, nargs='*', default=float('inf'))
-parser.add_argument('--groupsort_n_groups', type=str, default="Full")
+parser.add_argument('--groupsort_n_groups', type=str, default=8)
 parser.add_argument('--mlp_hidden_params', type=int, default=256)
 parser.add_argument('--mlp_depth', type=int, default=3)
 parser.add_argument('--constrain_critic', type=bool, default=False)
