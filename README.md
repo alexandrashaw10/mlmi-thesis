@@ -1,6 +1,6 @@
 # Heterogeneous Multi-Agent Learning under Policy Constraints
 
-This repository contains the code for the dissertation "Evaluating the Benefits of Heterogeneity in Multi-Agent Reinforcement Learning" submitted for the MPhil in Machine Learning and Machine Intelligence.
+This repository contains the code for the dissertation "Evaluating the Benefits of Heterogeneity in Multi-Agent Reinforcement Learning" submitted for the MPhil in Machine Learning and Machine Intelligence at the University of Cambridge Department of Engineering. Many thanks to my supervisors Prof. Amanda Prorok and Matteo Bettini.
 
 This repository is based off of code written for:
 - [Heterogeneous Multi-Agent Reinforcement Learning](https://arxiv.org/abs/2301.07137)
