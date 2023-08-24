@@ -1,79 +1,25 @@
-# HetGPPO & SND
+# Heterogeneous Multi-Agent Learning under Policy Constraints
 
-<img src="https://github.com/matteobettini/vmas-media/blob/main/hetgppo/HETGIPPO_fill.png?raw=true" alt="drawing"/>  
+This repository contains the code for the dissertation "Evaluating the Benefits of Heterogeneity in Multi-Agent Reinforcement Learning" submitted for the MPhil in Machine Learning and Machine Intelligence.
 
-This repository contains the code for the papers:
+This repository is based off of code written for:
 - [Heterogeneous Multi-Agent Reinforcement Learning](https://arxiv.org/abs/2301.07137)
-- [System Neural Diversity: Measuring Behavioral Heterogeneity in Multi-Agent Learning](https://arxiv.org/abs/2305.02128) 
+- [System Neural Diversity: Measuring Behavioral Heterogeneity in Multi-Agent Learning](https://arxiv.org/abs/2305.02128)
+- [VMAS: Vectorized Multi-Agent Simulator](https://arxiv.org/abs/2207.03530)
 
+This repository also utilizes the following package:
+- [Monotonenorm](https://github.com/niklasnolte/MonotonicNetworks)
 
-### Cite
+### Repository Overview
 
-If you use HetGPPO in your research, **cite** it using:
-```
-@inproceedings{bettini2023hetgppo,
-  title = {Heterogeneous Multi-Robot Reinforcement Learning},
-  author = {Bettini, Matteo and Shankar, Ajay and Prorok, Amanda},
-  year = {2023},
-  booktitle = {Proceedings of the 22nd International Conference on Autonomous Agents and Multiagent Systems},
-  publisher = {International Foundation for Autonomous Agents and Multiagent Systems},
-  series = {AAMAS '23}
-}
-```
-If you use SND in your research, **cite** it using:
-```
-@article{bettini2023snd,
-  title={System Neural Diversity: Measuring Behavioral Heterogeneity in Multi-Agent Learning},
-  author={Bettini, Matteo and Shankar, Ajay and Prorok, Amanda},
-  journal={arXiv preprint arXiv:2305.02128},
-  year={2023}
-}
-```
+#### Model
 
-### Videos
-Watch the presentation video of HetGPPO.
+The LipNormedMultiAgentMLP model is in `models/lip_multiagent_mlp.py`. This model is used to create the multi-agent policies with Lipschitz normalization that can be controlled as a hyperparameter.
 
-<p align="center">
+#### Experiments
 
-[![HetGPPO Video](https://img.youtube.com/vi/J81IVQEy-zw/0.jpg)](https://www.youtube.com/watch?v=J81IVQEy-zw)
-</p>
-Watch the talk about HetGPPO.
-<p align="center">
+The training scripts to run experiments in the various [VMAS](https://github.com/proroklab/VectorizedMultiAgentSimulator) scenarios can be found in the `train_torchRL` folder.
 
-[![HetGPPO Talk](https://img.youtube.com/vi/a4md0es3kuo/0.jpg)](https://youtu.be/a4md0es3kuo)
-</p>
+To run experiments, look for the run file for the specific scenario (e.g `run_left_right.py`).
 
-### How to use
-
-#### Install
-
-Clone the repository using
-```bash
-git clone --recursive https://github.com/proroklab/HetGPPO.git
-cd HetGPPO
-```
-Create a conda environment and install the dependencies
-```bash
-pip install "ray[rllib]"==2.1.0
-pip install -r requirements.txt
-```
-
-#### Run
-
-The training scripts to run HetGPPO in the various [VMAS](https://github.com/proroklab/VectorizedMultiAgentSimulator) scenarios can be found in the `train` folder.
-
-These scripts use the HetGPPO model in `models/gppo.py` to train multiple agents in different scenarios. The scripts log to wandb.
-
-You can run them with:
-```bash
-python train/train_flocking.py
-```
-
-The hyperparameters for each script can be changed according to the user needs.
-
-Several util tools can be found in `utils.py`, including the callback to compute the SND heterogeneity metric.
-
-Several evaluation tools can be found in the `evaluate` folder.
-
-
-
+The hyperparameters and scenario parameters can be set through the command line arguments for each run file.
